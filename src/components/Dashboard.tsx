@@ -432,40 +432,40 @@ export default function Dashboard({ onBackToLanding, isDarkMode, toggleTheme, in
         {/* HEADER PANEL */}
         <header className="h-14 md:h-16 px-3 md:px-6 border-b border-zinc-800/20 flex items-center justify-between bg-black/10 backdrop-blur-md">
           {/* Active document notification */}
-          <div className="flex items-center gap-3">
-            <button onClick={() => setSidebarOpen(!sidebarOpen)} className="md:hidden p-2 rounded-lg hover:bg-white/5 text-zinc-400 mr-2"><Menu className="w-5 h-5" /></button>
+          <div className="flex items-center gap-2 sm:gap-3">
+            <button onClick={() => setSidebarOpen(!sidebarOpen)} className="md:hidden p-1.5 sm:p-2 rounded-lg hover:bg-white/5 text-zinc-400"><Menu className="w-5 h-5" /></button>
             {pdfName ? (
-              <div className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/30 px-3 py-1.5 rounded-xl text-xs text-emerald-400 max-w-[200px] sm:max-w-xs md:max-w-md truncate">
+              <div className="flex items-center gap-1.5 sm:gap-2 bg-emerald-500/10 border border-emerald-500/30 px-2 sm:px-3 py-1 sm:py-1.5 rounded-xl text-xs text-emerald-400 max-w-[100px] sm:max-w-xs md:max-w-md truncate">
                 <FileText className="w-3.5 h-3.5 shrink-0" />
                 <span className="truncate">{pdfName}</span>
                 <button
                   onClick={handleRemoveDoc}
-                  className="ml-1 text-emerald-600 hover:text-emerald-400 font-bold text-xs shrink-0 cursor-pointer"
+                  className="ml-0.5 sm:ml-1 text-emerald-600 hover:text-emerald-400 font-bold text-xs shrink-0 cursor-pointer"
                   title="Remove document"
                 >
                   ✕
                 </button>
               </div>
             ) : (
-              <div className="flex items-center gap-2 bg-zinc-900 border border-zinc-800/30 px-3 py-1.5 rounded-xl text-xs text-zinc-400">
+              <div className="flex items-center gap-2 bg-zinc-900 border border-zinc-800/30 px-2 sm:px-3 py-1 sm:py-1.5 rounded-xl text-xs text-zinc-400">
                 <AlertCircle className="w-3.5 h-3.5 shrink-0 text-zinc-500" />
-                <span>No document uploaded</span>
+                <span className="hidden sm:inline">No document uploaded</span>
               </div>
             )}
           </div>
 
           {/* Action configurations */}
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 sm:gap-4">
             {/* OpenRouter Key status indicator */}
             <div 
               onClick={() => setActiveTab("settings")}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-colors cursor-pointer ${
+              className={`flex items-center gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 rounded-xl text-xs font-bold border transition-colors cursor-pointer ${
                 openRouterKey
                   ? "bg-indigo-600/10 border-indigo-500/40 text-indigo-400"
                   : "bg-amber-600/10 border-amber-500/40 text-amber-400"
               }`}
             >
-              <Key className="w-3.5 h-3.5" />
+              <Key className="w-3.5 h-3.5 shrink-0" />
               <span className="hidden sm:inline">{openRouterKey ? "API Key Loaded" : "Add API Key"}</span>
             </div>
 

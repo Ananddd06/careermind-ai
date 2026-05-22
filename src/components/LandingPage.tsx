@@ -95,13 +95,15 @@ export default function LandingPage({ onStartDemo, onUploadClick, isDarkMode, to
         <div className="flex items-center gap-4">
           {!isSignedIn ? (
             <>
-              <SignInButton mode="modal" fallbackRedirectUrl="/">
-                <button className="px-4 py-2 rounded-lg text-sm font-semibold text-zinc-300 hover:text-white hover:bg-white/5 transition-all cursor-pointer">
-                  Log In
-                </button>
-              </SignInButton>
+              <div className="hidden sm:block">
+                <SignInButton mode="modal" fallbackRedirectUrl="/">
+                  <button className="px-4 py-2 rounded-lg text-sm font-semibold text-zinc-300 hover:text-white hover:bg-white/5 transition-all cursor-pointer">
+                    Log In
+                  </button>
+                </SignInButton>
+              </div>
               <SignUpButton mode="modal" fallbackRedirectUrl="/">
-                <button className="px-5 py-2 rounded-lg text-sm font-semibold bg-emerald-500 text-emerald-950 hover:bg-emerald-400 transition-all shadow-sm cursor-pointer shadow-emerald-500/20">
+                <button className="px-3 sm:px-5 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-semibold bg-emerald-500 text-emerald-950 hover:bg-emerald-400 transition-all shadow-sm cursor-pointer shadow-emerald-500/20">
                   Sign Up
                 </button>
               </SignUpButton>
