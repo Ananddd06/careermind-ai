@@ -112,7 +112,7 @@ export default function PaperAnalyzer({ pdfText, pdfName, openRouterKey, selecte
     <div className="h-full flex flex-col bg-zinc-950 p-4 md:p-6 overflow-hidden relative">
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 pb-6 border-b border-zinc-800">
         <div>
-          <h2 className="text-2xl font-black text-zinc-100 flex items-center gap-3">
+          <h2 className="text-xl md:text-2xl font-black text-zinc-100 flex items-center gap-3">
             <Microscope className="w-7 h-7 text-emerald-500" />
             Research Paper Analyzer
           </h2>
@@ -199,14 +199,14 @@ export default function PaperAnalyzer({ pdfText, pdfName, openRouterKey, selecte
                     className="text-zinc-400 hover:text-zinc-100 transition-colors flex items-center gap-1.5 text-xs bg-zinc-800 px-3 py-1.5 rounded-lg border border-zinc-700"
                     title="Copy code"
                   >
-                    <Copy className="w-3.5 h-3.5" /> Copy
+                    <Copy className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Copy</span>
                   </button>
                   <button 
                     onClick={handleDownload}
                     className="text-emerald-400 hover:text-emerald-300 transition-colors flex items-center gap-1.5 text-xs bg-emerald-500/10 hover:bg-emerald-500/20 px-3 py-1.5 rounded-lg border border-emerald-500/30"
                     title="Download .py file"
                   >
-                    <Download className="w-3.5 h-3.5" /> Download
+                    <Download className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Download</span>
                   </button>
                 </div>
               </div>

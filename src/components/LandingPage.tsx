@@ -82,12 +82,12 @@ export default function LandingPage({ onStartDemo, onUploadClick, isDarkMode, to
       <div className="absolute bottom-[-10%] right-[-10%] w-[60%] h-[60%] bg-emerald-900/10 rounded-full blur-[120px] -z-10 pointer-events-none" />
 
       {/* Navigation Header */}
-      <nav className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between border-b border-white/5 backdrop-blur-md sticky top-0 z-50">
+      <nav className="max-w-7xl mx-auto px-4 md:px-6 h-16 md:h-20 flex items-center justify-between border-b border-white/5 backdrop-blur-md sticky top-0 z-50">
         <div className="flex items-center gap-2">
           <div className="w-9 h-9 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center shadow-sm">
             <Cpu className="w-5 h-5 text-zinc-100" />
           </div>
-          <span className="text-xl font-bold tracking-tight text-zinc-100">
+          <span className="text-lg md:text-xl font-bold tracking-tight text-zinc-100">
             HireForge AI
           </span>
         </div>
@@ -118,7 +118,7 @@ export default function LandingPage({ onStartDemo, onUploadClick, isDarkMode, to
       </nav>
 
       {/* Hero Section */}
-      <section className="max-w-7xl mx-auto px-6 pt-20 md:pt-32 pb-16 text-center relative">
+      <section className="max-w-7xl mx-auto px-4 md:px-6 pt-12 md:pt-20 lg:pt-32 pb-16 text-center relative">
         <motion.div
           variants={containerVariants}
           initial="hidden"
@@ -137,7 +137,7 @@ export default function LandingPage({ onStartDemo, onUploadClick, isDarkMode, to
           {/* Heading */}
           <motion.h1 
             variants={itemVariants}
-            className="text-5xl md:text-7xl font-bold tracking-tighter max-w-4xl leading-[1.05] mb-6 text-zinc-100"
+            className="text-3xl sm:text-5xl md:text-7xl font-bold tracking-tighter max-w-4xl leading-[1.05] mb-6 text-zinc-100"
           >
             Your AI-powered <br />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-indigo-400">
@@ -148,7 +148,7 @@ export default function LandingPage({ onStartDemo, onUploadClick, isDarkMode, to
           {/* Subheading */}
           <motion.p 
             variants={itemVariants}
-            className="text-lg md:text-xl text-zinc-400 max-w-2xl mb-10 font-normal leading-relaxed"
+            className="text-base md:text-lg lg:text-xl text-zinc-400 max-w-2xl mb-10 font-normal leading-relaxed"
           >
             Build ATS-winning resumes, chat with PDFs, generate interview questions, and prepare for your next role in one intelligent, unified platform.
           </motion.p>
@@ -156,7 +156,7 @@ export default function LandingPage({ onStartDemo, onUploadClick, isDarkMode, to
           {/* CTAs */}
           <motion.div 
             variants={itemVariants}
-            className="flex flex-col sm:flex-row items-center gap-4 mb-20"
+            className="flex flex-col sm:flex-row items-center gap-4 mb-10 md:mb-20"
           >
             {!isSignedIn ? (
               <>
@@ -200,7 +200,7 @@ export default function LandingPage({ onStartDemo, onUploadClick, isDarkMode, to
                 <span className="w-3 h-3 rounded-full bg-zinc-700" />
                 <span className="w-3 h-3 rounded-full bg-zinc-700" />
               </div>
-              <div className="flex gap-2 text-xs font-medium text-zinc-400">
+              <div className="flex gap-2 text-xs font-medium text-zinc-400 overflow-x-auto">
                 <button 
                   onClick={() => setActivePanel("resume")}
                   className={`px-3 py-1.5 rounded-md transition-all ${activePanel === "resume" ? "bg-zinc-800 text-zinc-100 shadow-sm" : "hover:text-zinc-200"}`}
@@ -230,7 +230,7 @@ export default function LandingPage({ onStartDemo, onUploadClick, isDarkMode, to
             </div>
 
             {/* Mockup Body */}
-            <div className="h-[450px] bg-zinc-950/50 rounded-b-lg overflow-hidden flex relative">
+            <div className="h-[300px] sm:h-[450px] bg-zinc-950/50 rounded-b-lg overflow-hidden flex relative">
               
               {/* Panel 1: ATS Resume Editor */}
               <div className={`absolute inset-0 flex transition-opacity duration-500 ${activePanel === "resume" ? "opacity-100 z-10" : "opacity-0 z-0"}`}>
@@ -381,7 +381,7 @@ export default function LandingPage({ onStartDemo, onUploadClick, isDarkMode, to
       </section>
 
       {/* PDF Intelligence Section */}
-      <section className="max-w-7xl mx-auto px-6 py-24 md:py-32 border-t border-white/5">
+      <section className="max-w-7xl mx-auto px-4 md:px-6 py-16 md:py-24 lg:py-32 border-t border-white/5">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-16 items-center">
           <div className="order-2 md:order-1">
             <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-6 relative overflow-hidden">
@@ -406,7 +406,7 @@ export default function LandingPage({ onStartDemo, onUploadClick, isDarkMode, to
             <div className="w-12 h-12 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center">
               <FileSearch className="w-6 h-6 text-indigo-400" />
             </div>
-            <h2 className="text-3xl md:text-4xl font-bold tracking-tight">AI-Powered PDF Intelligence</h2>
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight">AI-Powered PDF Intelligence</h2>
             <p className="text-zinc-400 leading-relaxed text-lg">
               Upload resumes, job descriptions, study notes, or technical documents. Our RAG-based AI system reads your files, simplifies complex concepts, extracts key insights, and provides context-grounded answers.
             </p>
@@ -420,13 +420,13 @@ export default function LandingPage({ onStartDemo, onUploadClick, isDarkMode, to
       </section>
 
       {/* ATS Builder Section */}
-      <section className="max-w-7xl mx-auto px-6 py-24 md:py-32 border-t border-white/5">
+      <section className="max-w-7xl mx-auto px-4 md:px-6 py-16 md:py-24 lg:py-32 border-t border-white/5">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-16 items-center">
           <div className="flex flex-col gap-6">
             <div className="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
               <BarChart className="w-6 h-6 text-emerald-400" />
             </div>
-            <h2 className="text-3xl md:text-4xl font-bold tracking-tight">Premium ATS Resume Builder</h2>
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight">Premium ATS Resume Builder</h2>
             <p className="text-zinc-400 leading-relaxed text-lg">
               Stop guessing what recruiters want. HireForge AI provides real-time formatting validation, recruiter readability analysis, and intelligent phrasing suggestions to ensure your resume passes Applicant Tracking Systems (ATS).
             </p>
@@ -456,9 +456,9 @@ export default function LandingPage({ onStartDemo, onUploadClick, isDarkMode, to
       </section>
 
       {/* AI Interview Prep & Flashcards */}
-      <section className="max-w-7xl mx-auto px-6 py-24 md:py-32 border-t border-white/5">
+      <section className="max-w-7xl mx-auto px-4 md:px-6 py-16 md:py-24 lg:py-32 border-t border-white/5">
         <div className="text-center mb-16">
-          <h2 className="text-3xl md:text-5xl font-bold tracking-tight mb-4">Master the Interview</h2>
+          <h2 className="text-2xl sm:text-3xl md:text-5xl font-bold tracking-tight mb-4">Master the Interview</h2>
           <p className="text-zinc-400 max-w-2xl mx-auto text-lg">
             HireForge AI generates dynamic technical, HR, and behavioral questions directly from your resume and study materials.
           </p>
@@ -498,21 +498,21 @@ export default function LandingPage({ onStartDemo, onUploadClick, isDarkMode, to
       </section>
 
       {/* PRICING SECTION */}
-      <section className="py-24 px-6 border-t border-zinc-900 bg-zinc-950">
+      <section className="py-16 md:py-24 px-4 md:px-6 border-t border-zinc-900 bg-zinc-950">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-extrabold text-zinc-100 tracking-tight mb-4">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-zinc-100 tracking-tight mb-4">
               Simple, transparent pricing
             </h2>
             <p className="text-zinc-400">Unlock full access to JAKE's AI intelligence.</p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
             {/* Starter */}
             <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-8 flex flex-col">
               <h3 className="text-xl font-bold text-zinc-100 mb-2">Starter</h3>
               <div className="flex items-baseline gap-1 mb-6">
-                <span className="text-4xl font-extrabold text-zinc-100">₹799</span>
+                <span className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-zinc-100">₹799</span>
                 <span className="text-zinc-500 text-sm">/ 3 months</span>
               </div>
               <ul className="space-y-4 mb-8 flex-1">
@@ -542,7 +542,7 @@ export default function LandingPage({ onStartDemo, onUploadClick, isDarkMode, to
               </div>
               <h3 className="text-xl font-bold text-zinc-100 mb-2">Pro</h3>
               <div className="flex items-baseline gap-1 mb-6">
-                <span className="text-4xl font-extrabold text-zinc-100">₹1599</span>
+                <span className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-zinc-100">₹1599</span>
                 <span className="text-zinc-500 text-sm">/ 6 months</span>
               </div>
               <ul className="space-y-4 mb-8 flex-1">
@@ -570,7 +570,7 @@ export default function LandingPage({ onStartDemo, onUploadClick, isDarkMode, to
             <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-8 flex flex-col">
               <h3 className="text-xl font-bold text-zinc-100 mb-2">Elite</h3>
               <div className="flex items-baseline gap-1 mb-6">
-                <span className="text-4xl font-extrabold text-zinc-100">₹2500</span>
+                <span className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-zinc-100">₹2500</span>
                 <span className="text-zinc-500 text-sm">/ 1 year</span>
               </div>
               <ul className="space-y-4 mb-8 flex-1">
@@ -597,9 +597,9 @@ export default function LandingPage({ onStartDemo, onUploadClick, isDarkMode, to
       </section>
 
       {/* FINAL CTA SECTION */}
-      <section className="max-w-4xl mx-auto px-6 py-20 md:py-28 text-center relative rounded-3xl border border-zinc-800 bg-zinc-900 overflow-hidden mb-20 shadow-2xl">
+      <section className="max-w-4xl mx-auto px-4 md:px-6 py-16 md:py-20 lg:py-28 text-center relative rounded-3xl border border-zinc-800 bg-zinc-900 overflow-hidden mb-10 md:mb-20 shadow-2xl">
         <div className="absolute inset-0 bg-gradient-to-b from-transparent to-zinc-950/50 pointer-events-none" />
-        <h2 className="text-3xl md:text-5xl font-bold tracking-tight mb-4 text-zinc-100 relative z-10">
+        <h2 className="text-2xl sm:text-3xl md:text-5xl font-bold tracking-tight mb-4 text-zinc-100 relative z-10">
           Ready to land your dream role?
         </h2>
         <p className="text-zinc-400 max-w-lg mx-auto text-lg mb-8 relative z-10">
@@ -615,7 +615,7 @@ export default function LandingPage({ onStartDemo, onUploadClick, isDarkMode, to
       </section>
 
       {/* Footer */}
-      <footer className="max-w-7xl mx-auto px-6 py-10 border-t border-white/5 flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-zinc-500">
+      <footer className="max-w-7xl mx-auto px-4 md:px-6 py-10 border-t border-white/5 flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-zinc-500">
         <div>
           <p>© {new Date().getFullYear()} HireForge AI. The Career Intelligence Platform.</p>
         </div>

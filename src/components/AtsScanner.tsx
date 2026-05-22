@@ -133,7 +133,7 @@ export default function AtsScanner({
           </div>
         )}
 
-        <div className="flex-1 flex flex-col lg:flex-row gap-6 p-6 overflow-hidden min-h-0">
+        <div className="flex-1 flex flex-col lg:flex-row gap-6 p-3 md:p-6 overflow-hidden min-h-0">
           {/* Input Section */}
           <div className="w-full lg:w-1/2 flex flex-col gap-6 overflow-y-auto custom-scrollbar pr-2">
             {/* Resume Upload */}
@@ -202,7 +202,7 @@ export default function AtsScanner({
                 value={jobDescription}
                 onChange={(e) => setJobDescription(e.target.value)}
                 placeholder="Paste the job description here..."
-                className="flex-1 min-h-[250px] w-full bg-zinc-900 border border-zinc-700 rounded-lg p-4 text-sm text-zinc-300 placeholder:text-zinc-500 focus:outline-none focus:border-emerald-500/50 resize-none font-mono"
+                className="flex-1 min-h-[150px] md:min-h-[250px] w-full bg-zinc-900 border border-zinc-700 rounded-lg p-4 text-sm text-zinc-300 placeholder:text-zinc-500 focus:outline-none focus:border-emerald-500/50 resize-none font-mono"
               />
             </div>
 

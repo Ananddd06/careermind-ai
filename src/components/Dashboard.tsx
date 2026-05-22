@@ -23,7 +23,8 @@ import {
   EyeOff,
   Briefcase,
   Cpu,
-  Microscope
+  Microscope,
+  Menu
 } from "lucide-react";
 import { chunkText } from "@/lib/rag-helper";
 import { SUPPORTED_MODELS } from "@/lib/openrouter";
@@ -46,6 +47,7 @@ interface DashboardProps {
 export default function Dashboard({ onBackToLanding, isDarkMode, toggleTheme, initialUploadTriggered = false }: DashboardProps) {
   // Navigation
   const [activeTab, setActiveTab] = useState<"tutor" | "flashcards" | "quiz" | "settings" | "resume" | "ats" | "paper">("tutor");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   
   // Document State
   const [pdfName, setPdfName] = useState("");
@@ -354,7 +356,8 @@ export default function Dashboard({ onBackToLanding, isDarkMode, toggleTheme, in
       <div className="absolute bottom-[-10%] left-[-10%] w-[40%] h-[40%] bg-emerald-900/10 rounded-full blur-[120px] pointer-events-none" />
 
       {/* SIDEBAR NAVIGATION */}
-      <aside className="w-64 shrink-0 bg-zinc-900/40 border-r border-white/5 backdrop-blur-md flex flex-col justify-between p-4 z-10">
+      {sidebarOpen && <div className="fixed inset-0 bg-black/60 z-30 md:hidden" onClick={() => setSidebarOpen(false)} />}
+      <aside className={`fixed inset-y-0 left-0 z-40 w-64 shrink-0 bg-zinc-950 border-r border-white/5 backdrop-blur-md flex flex-col justify-between p-4 transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 md:bg-zinc-900/40 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="space-y-10">
           {/* Logo Brand */}
           <div 
@@ -386,7 +389,7 @@ export default function Dashboard({ onBackToLanding, isDarkMode, toggleTheme, in
               ].map((link) => (
                 <button
                   key={link.id}
-                  onClick={() => setActiveTab(link.id as any)}
+                  onClick={() => { setActiveTab(link.id as any); setSidebarOpen(false); }}
                   className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all text-left cursor-pointer ${
                     activeTab === link.id
                       ? "bg-zinc-800/80 text-zinc-100 shadow-sm border border-zinc-700/50"
@@ -427,9 +430,10 @@ export default function Dashboard({ onBackToLanding, isDarkMode, toggleTheme, in
       <main className="flex-1 flex flex-col min-w-0 z-10">
         
         {/* HEADER PANEL */}
-        <header className="h-16 px-6 border-b border-zinc-800/20 flex items-center justify-between bg-black/10 backdrop-blur-md">
+        <header className="h-14 md:h-16 px-3 md:px-6 border-b border-zinc-800/20 flex items-center justify-between bg-black/10 backdrop-blur-md">
           {/* Active document notification */}
           <div className="flex items-center gap-3">
+            <button onClick={() => setSidebarOpen(!sidebarOpen)} className="md:hidden p-2 rounded-lg hover:bg-white/5 text-zinc-400 mr-2"><Menu className="w-5 h-5" /></button>
             {pdfName ? (
               <div className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/30 px-3 py-1.5 rounded-xl text-xs text-emerald-400 max-w-[200px] sm:max-w-xs md:max-w-md truncate">
                 <FileText className="w-3.5 h-3.5 shrink-0" />
@@ -462,7 +466,7 @@ export default function Dashboard({ onBackToLanding, isDarkMode, toggleTheme, in
               }`}
             >
               <Key className="w-3.5 h-3.5" />
-              <span>{openRouterKey ? "API Key Loaded" : "Add API Key"}</span>
+              <span className="hidden sm:inline">{openRouterKey ? "API Key Loaded" : "Add API Key"}</span>
             </div>
 
             {/* Theme toggle */}
@@ -477,14 +481,14 @@ export default function Dashboard({ onBackToLanding, isDarkMode, toggleTheme, in
 
           <div className="flex items-center gap-4">
             <div className="flex flex-col items-end">
-              <div className="text-[10px] uppercase font-bold text-zinc-500 tracking-wider">Free Uses</div>
+              <div className="text-[10px] uppercase font-bold text-zinc-500 tracking-wider hidden sm:block">Free Uses</div>
               <div className={`text-xs font-mono font-bold ${usageCount >= 10 ? 'text-rose-400' : 'text-emerald-400'}`}>
                 {usageCount} / 10
               </div>
             </div>
             
             {user && (
-              <span className="text-sm font-semibold text-zinc-300">
+              <span className="text-sm font-semibold text-zinc-300 hidden md:inline">
                 Hi, {user.firstName || user.username || "User"}
               </span>
             )}
@@ -493,7 +497,7 @@ export default function Dashboard({ onBackToLanding, isDarkMode, toggleTheme, in
         </header>
 
         {/* WORKSPACE AREA */}
-        <div className="flex-1 px-6 pt-8 pb-4 overflow-y-auto flex flex-col">
+        <div className="flex-1 px-3 md:px-6 pt-4 md:pt-8 pb-4 overflow-y-auto flex flex-col">
           
           {/* UPLOAD SCREEN (Prompt if no document, except when in Settings tab) */}
           {!pdfName && activeTab !== "settings" && activeTab !== "resume" && activeTab !== "ats" && !isParsing && (
@@ -510,7 +514,7 @@ export default function Dashboard({ onBackToLanding, isDarkMode, toggleTheme, in
                 onDragOver={handleDragOver}
                 onDrop={handleDrop}
                 onClick={() => fileInputRef.current?.click()}
-                className="bg-zinc-900 border-2 border-dashed border-zinc-800 hover:border-emerald-500/50 hover:bg-zinc-800/50 duration-300 rounded-3xl p-12 flex flex-col items-center gap-4 cursor-pointer"
+                className="bg-zinc-900 border-2 border-dashed border-zinc-800 hover:border-emerald-500/50 hover:bg-zinc-800/50 duration-300 rounded-3xl p-6 md:p-12 flex flex-col items-center gap-4 cursor-pointer"
               >
                 <div className="w-16 h-16 rounded-2xl bg-zinc-950 border border-zinc-800 flex items-center justify-center text-emerald-400 shadow-sm">
                   <UploadCloud className="w-8 h-8 animate-bounce" />

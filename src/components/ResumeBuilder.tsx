@@ -231,12 +231,12 @@ export default function ResumeBuilder({
     <div className="flex flex-col h-full bg-[#1e1e1e] border border-zinc-800/30 rounded-2xl overflow-hidden font-sans text-zinc-300 relative">
       
       {/* Overleaf-Style Global Header */}
-      <div className="flex items-center justify-between px-4 py-2 bg-[#1e1e1e] border-b border-[#333] text-sm">
+      <div className="flex items-center justify-between px-2 md:px-4 py-1.5 md:py-2 bg-[#1e1e1e] border-b border-[#333] text-sm">
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-1.5 text-emerald-500 font-bold">
             <LayoutGrid className="w-4 h-4" />
           </div>
-          <div className="flex items-center text-xs text-zinc-300 space-x-4">
+          <div className="hidden md:flex items-center text-xs text-zinc-300 space-x-4">
             <span className="hover:text-white cursor-pointer">File</span>
             <span className="hover:text-white cursor-pointer">Edit</span>
             <span className="hover:text-white cursor-pointer">Insert</span>
@@ -247,27 +247,27 @@ export default function ResumeBuilder({
         </div>
         <div className="flex items-center justify-center flex-1">
           <div className="flex items-center gap-2">
-            <span className="text-sm font-semibold text-white">Jake's Resume Template</span>
+            <span className="text-xs md:text-sm font-semibold text-white">Jake's Resume Template</span>
             <span className="text-xs text-zinc-500">(Anonymous)</span>
           </div>
         </div>
         <div className="flex items-center gap-3">
           <History className="w-4 h-4 text-zinc-400 hover:text-white cursor-pointer" />
           <MessageSquare className="w-4 h-4 text-zinc-400 hover:text-white cursor-pointer" />
-          <button className="flex items-center gap-1 bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded text-xs font-semibold">
+          <button className="hidden md:flex items-center gap-1 bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded text-xs font-semibold">
             <Share2 className="w-3.5 h-3.5" /> Share
           </button>
-          <button className="flex items-center gap-1 bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded text-xs font-semibold">
+          <button className="hidden md:flex items-center gap-1 bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded text-xs font-semibold">
             <Crown className="w-3.5 h-3.5" /> Upgrade
           </button>
         </div>
       </div>
 
       {/* Main split viewport layout */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
         
         {/* Left Sidebar (File tree & AI Assistant) */}
-        <div className="w-80 flex flex-col bg-[#1e1e1e] border-r border-[#333]">
+        <div className="hidden lg:flex lg:w-80 flex-col bg-[#1e1e1e] border-r border-[#333]">
           {/* Sidebar Tabs */}
           <div className="flex border-b border-[#333] text-[10px] font-bold text-zinc-400 uppercase tracking-wider">
             <button 
@@ -389,7 +389,7 @@ export default function ResumeBuilder({
         </div>
 
         {/* Middle Pane: Code Editor */}
-        <div className="flex-1 flex flex-col bg-[#252526] border-r border-[#333] min-w-[300px]">
+        <div className="h-[50vh] md:h-auto md:flex-1 flex flex-col bg-[#252526] border-r border-[#333] min-w-0">
           {/* Editor Tabs & Toolbar */}
           <div className="flex flex-col border-b border-[#333]">
             <div className="flex items-center bg-[#1e1e1e]">
@@ -442,7 +442,7 @@ export default function ResumeBuilder({
         </div>
 
         {/* Right Pane: Live PDF Preview */}
-        <div className="flex-1 flex flex-col bg-[#323639] min-w-[300px]">
+        <div className="h-[50vh] md:h-auto md:flex-1 flex flex-col bg-[#323639] min-w-0">
           {/* Preview Toolbar */}
           <div className="px-4 py-2 border-b border-[#202124] flex items-center justify-between bg-[#323639] text-zinc-300">
             <div className="flex items-center gap-2">
