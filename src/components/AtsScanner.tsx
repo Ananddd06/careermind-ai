@@ -125,17 +125,17 @@ export default function AtsScanner({
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-6 space-y-6">
+      <div className="flex-1 flex flex-col min-h-0">
         {error && (
-          <div className="flex gap-3 bg-rose-950/20 border border-rose-500/30 p-3.5 rounded-xl text-xs text-rose-300 animate-fade-in">
+          <div className="flex gap-3 bg-rose-950/20 border border-rose-500/30 p-3.5 mx-6 mt-6 rounded-xl text-xs text-rose-300 animate-fade-in shrink-0">
             <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
             <span>{error}</span>
           </div>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="flex-1 flex flex-col lg:flex-row gap-6 p-6 overflow-hidden min-h-0">
           {/* Input Section */}
-          <div className="space-y-6">
+          <div className="w-full lg:w-1/2 flex flex-col gap-6 overflow-y-auto custom-scrollbar pr-2">
             {/* Resume Upload */}
             <div className="bg-zinc-950 rounded-xl border border-zinc-800 p-5">
               <h4 className="text-sm font-semibold text-zinc-200 mb-3 flex items-center gap-2">
@@ -226,7 +226,7 @@ export default function AtsScanner({
           </div>
 
           {/* Results Section */}
-          <div className="bg-zinc-950 rounded-xl border border-zinc-800 p-5 overflow-y-auto">
+          <div className="w-full lg:w-1/2 bg-zinc-950 rounded-xl border border-zinc-800 p-5 overflow-y-auto custom-scrollbar relative flex flex-col">
             {!feedback ? (
               <div className="h-full flex flex-col items-center justify-center text-center opacity-50">
                 <Target className="w-12 h-12 text-zinc-500 mb-4" />

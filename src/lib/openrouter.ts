@@ -1,4 +1,5 @@
 import { OpenRouter } from "@openrouter/sdk";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 export interface Message {
   role: "system" | "user" | "assistant";
@@ -14,6 +15,12 @@ export interface QuizQuestion {
   explanation: string;
 }
 
+export interface ResumeSuggestion {
+  originalText: string;
+  suggestedText: string;
+  reason: string;
+}
+
 export interface ModelOption {
   id: string;
   name: string;
@@ -23,8 +30,26 @@ export interface ModelOption {
 
 export const SUPPORTED_MODELS: ModelOption[] = [
   {
+    id: "native/gemini-2.5-flash",
+    name: "Gemini 2.5 Flash (Google AI Studio)",
+    provider: "Google",
+    isFree: true,
+  },
+  {
+    id: "native/gemini-2.5-pro",
+    name: "Gemini 2.5 Pro (Google AI Studio)",
+    provider: "Google",
+    isFree: true,
+  },
+  {
     id: "qwen/qwen3-next-80b-a3b-instruct:free",
     name: "Qwen 3 Next 80B (Free)",
+    provider: "Alibaba",
+    isFree: true,
+  },
+  {
+    id: "qwen/qwen3-coder:free",
+    name: "Qwen 3 Coder (Free)",
     provider: "Alibaba",
     isFree: true,
   },
@@ -240,6 +265,30 @@ export async function streamChatCompletion(
   }
 
   try {
+    if (model.startsWith("native/")) {
+      const geminiModelName = model.replace("native/", "");
+      const genAI = new GoogleGenerativeAI(apiKey);
+      const geminiModel = genAI.getGenerativeModel({ model: geminiModelName });
+      
+      const chat = geminiModel.startChat({
+        history: messages.slice(0, -1).map(m => ({
+          role: m.role === "assistant" ? "model" : "user",
+          parts: [{ text: m.content }]
+        }))
+      });
+      
+      const lastMessage = messages[messages.length - 1].content;
+      const result = await chat.sendMessageStream(lastMessage);
+      
+      let fullText = "";
+      for await (const chunk of result.stream) {
+        const chunkText = chunk.text();
+        fullText += chunkText;
+        onChunk(chunkText);
+      }
+      return fullText;
+    }
+
     const openrouter = new OpenRouter({
       apiKey,
       httpReferer: "https://socrates-ai.vercel.app",
@@ -285,6 +334,23 @@ export async function getChatCompletion(
   messages: Message[]
 ): Promise<string> {
   try {
+    if (model.startsWith("native/")) {
+      const geminiModelName = model.replace("native/", "");
+      const genAI = new GoogleGenerativeAI(apiKey);
+      const geminiModel = genAI.getGenerativeModel({ model: geminiModelName });
+      
+      const chat = geminiModel.startChat({
+        history: messages.slice(0, -1).map(m => ({
+          role: m.role === "assistant" ? "model" : "user",
+          parts: [{ text: m.content }]
+        }))
+      });
+      
+      const lastMessage = messages[messages.length - 1].content;
+      const result = await chat.sendMessage(lastMessage);
+      return result.response.text();
+    }
+
     const openrouter = new OpenRouter({
       apiKey,
       httpReferer: "https://socrates-ai.vercel.app",
@@ -969,6 +1035,69 @@ Follow the template structure exactly:
   }
 }
 
+export async function generateResumeSuggestions(
+  apiKey: string,
+  model: string,
+  latex: string,
+  jd: string
+): Promise<ResumeSuggestion[]> {
+  if (apiKey.toLowerCase() === "demo") {
+    // Simulated delay
+    await new Promise(res => setTimeout(res, 1500));
+    return [
+      {
+        originalText: "\\resumeItem{Developed web applications using React}",
+        suggestedText: "\\resumeItem{Engineered scalable web applications using React and Next.js, improving page load speed by 40%}",
+        reason: "The job description emphasizes scalable applications and performance metrics."
+      },
+      {
+        originalText: "\\resumeItem{Worked on backend APIs}",
+        suggestedText: "\\resumeItem{Designed and implemented RESTful backend APIs in Node.js to support high-traffic microservices}",
+        reason: "The job requires experience with RESTful APIs, Node.js, and microservices architecture."
+      }
+    ];
+  }
+
+  const systemPrompt = `You are an expert ATS optimizer and resume writer.
+I will provide you with the LaTeX code of a resume and a target Job Description.
+Your task is to analyze the resume against the Job Description and provide highly targeted suggestions to improve the resume's match rate.
+
+You must output your response ONLY as a JSON array of objects with the following schema:
+[
+  {
+    "originalText": "The EXACT line of LaTeX code from the resume that should be changed (e.g. \\\\resumeItem{Old text})",
+    "suggestedText": "The EXACT new line of LaTeX code that should replace it (e.g. \\\\resumeItem{New text with keywords})",
+    "reason": "A short explanation of why this change improves ATS match based on the JD"
+  }
+]
+
+CRITICAL RULES:
+1. originalText MUST EXACTLY match a substring in the provided LaTeX code, including backslashes and brackets.
+2. Provide 3 to 5 high-impact suggestions, focusing on adding keywords from the JD and quantifying achievements.
+3. Do not include markdown code blocks like \`\`\`json in your output. Just output the raw JSON array.
+4. Ensure the JSON is perfectly valid.`;
+
+  const userPrompt = `JOB DESCRIPTION:\n${jd}\n\nRESUME LATEX:\n${latex}`;
+
+  const messages: Message[] = [
+    { role: "system", content: systemPrompt },
+    { role: "user", content: userPrompt }
+  ];
+
+  try {
+    const result = await getChatCompletion(apiKey, model, messages);
+    let jsonStr = result;
+    const jsonMatch = result.match(/\[\s*\{[\s\S]*\}\s*\]/);
+    if (jsonMatch) {
+      jsonStr = jsonMatch[0];
+    }
+    return JSON.parse(jsonStr) as ResumeSuggestion[];
+  } catch (err: any) {
+    console.error("Failed to generate suggestions:", err);
+    throw new Error("Failed to generate AI suggestions. Please try again.");
+  }
+}
+
 function generateSimulatedAts(latex: string, jd: string): AtsFeedback {
   const keywords = ["Docker", "Kubernetes", "Next.js", "CI/CD", "AWS", "TypeScript", "Python", "REST APIs", "SQL", "Git", "React", "Node.js", "Machine Learning"];
   const jdLower = jd.toLowerCase();
@@ -1077,3 +1206,151 @@ ${resumeText}
   }
 }
 
+export async function streamPaperAnalysis(
+  apiKey: string,
+  model: string,
+  textContext: string,
+  onUpdate: (chunk: string) => void,
+  abortSignal?: AbortSignal
+): Promise<string> {
+  if (apiKey.toLowerCase() === "demo") {
+    // Simulated fast stream for demo mode
+    const simulatedResponse = `*Simulation Mode*\n\n# Paper Analysis\n1. **Main objective**: ...\n\n\`\`\`python\n# Simulated Colab Notebook\nprint("Hello World")\n\`\`\``;
+    return new Promise((resolve) => {
+      let current = "";
+      let i = 0;
+      const interval = setInterval(() => {
+        current += simulatedResponse.charAt(i);
+        onUpdate(current);
+        i++;
+        if (i >= simulatedResponse.length) {
+          clearInterval(interval);
+          resolve(current);
+        }
+      }, 5);
+    });
+  }
+
+  const prompt = `You are a senior AI research analyst.
+  
+Analyze this research paper in detail and provide:
+
+1. Main objective
+2. Problem statement
+3. Core methodology
+4. Dataset used
+5. Model architecture
+6. Training pipeline
+7. Loss functions
+8. Optimizer and hyperparameters
+9. Key innovations
+10. Experimental setup
+11. Evaluation metrics
+12. Results
+13. Limitations
+14. Real-world applications
+
+Then provide:
+- step-by-step implementation plan
+- pseudocode
+- model workflow
+- important equations
+- simplified explanation for students
+
+Finally, using the research paper analysis above, generate a complete Google Colab compatible Jupyter Notebook (.ipynb style code) formatted as a single Python code block.
+
+Requirements for the Notebook code:
+1. Include markdown explanations (as python comments or multi-line strings) before each code block
+2. Use clean modular Python code
+3. Add comments for beginners
+4. Include:
+   - data preprocessing
+   - model building
+   - training loop
+   - evaluation
+   - inference
+5. Use PyTorch
+6. Include visualization graphs (using matplotlib/seaborn)
+7. Add requirements installation cells (e.g. !pip install ...)
+8. Make the notebook runnable end-to-end
+9. Follow the architecture described in the paper
+10. If some paper details are missing, use reasonable assumptions and clearly mention them.
+
+Here is the document text to analyze:
+${textContext.substring(0, 30000)}`;
+
+  let fullText = "";
+  try {
+    if (model.startsWith("native/")) {
+      const geminiModelName = model.replace("native/", "");
+      const genAI = new GoogleGenerativeAI(apiKey);
+      const geminiModel = genAI.getGenerativeModel({ model: geminiModelName });
+      
+      const result = await geminiModel.generateContentStream(
+        { contents: [{ role: "user", parts: [{ text: prompt }] }] },
+        { signal: abortSignal }
+      );
+      
+      for await (const chunk of result.stream) {
+        if (abortSignal?.aborted) throw new Error("AbortError");
+        const chunkText = chunk.text();
+        fullText += chunkText;
+        onUpdate(fullText);
+      }
+      return fullText;
+    }
+
+    // We use the raw fetch method for streaming since the official SDK might have different stream semantics
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+        "HTTP-Referer": "https://hireforge.ai",
+        "X-Title": "HireForge AI",
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        model: model,
+        messages: [{ role: "user", content: prompt }],
+        stream: true
+      }),
+      signal: abortSignal
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`OpenRouter API error: ${response.status} ${errorText}`);
+    }
+
+    const reader = response.body?.getReader();
+    const decoder = new TextDecoder("utf-8");
+    if (!reader) throw new Error("No readable stream available");
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      
+      const chunkText = decoder.decode(value, { stream: true });
+      const lines = chunkText.split('\\n');
+      
+      for (const line of lines) {
+        if (line.startsWith('data: ') && line !== 'data: [DONE]') {
+          try {
+            const data = JSON.parse(line.substring(6));
+            if (data.choices && data.choices[0].delta && data.choices[0].delta.content) {
+              fullText += data.choices[0].delta.content;
+              onUpdate(fullText);
+            }
+          } catch (e) {
+            // Ignore incomplete chunks
+          }
+        }
+      }
+    }
+    
+    return fullText;
+  } catch (error: any) {
+    console.error("Paper Analysis error:", error);
+    throw error;
+  }
+}

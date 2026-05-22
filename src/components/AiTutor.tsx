@@ -10,10 +10,18 @@ import {
   AlertCircle,
   FileText,
   RefreshCw,
-  CornerDownLeft
+  CornerDownLeft,
+  Code,
+  Copy,
+  CheckCircle,
+  Play
 } from "lucide-react";
 import { Message, streamChatCompletion, SUPPORTED_MODELS } from "@/lib/openrouter";
 import { searchChunks } from "@/lib/rag-helper";
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
 
 interface AiTutorProps {
   pdfChunks: string[];
@@ -203,7 +211,77 @@ Instructions for responding:
                 </div>
               ) : (
                 <div className="markdown-content prose prose-invert max-w-none text-zinc-300">
-                  <ReactMarkdown>
+                  <ReactMarkdown
+                    remarkPlugins={[remarkMath]}
+                    rehypePlugins={[rehypeKatex]}
+                    components={{
+                      code({node, inline, className, children, ...props}: any) {
+                        const match = /language-(\w+)/.exec(className || '')
+                        const language = match ? match[1] : '';
+                        const [isCopied, setIsCopied] = useState(false);
+
+                        const handleCopy = () => {
+                          navigator.clipboard.writeText(String(children).replace(/\n$/, ''));
+                          setIsCopied(true);
+                          setTimeout(() => setIsCopied(false), 2000);
+                        };
+
+                        return !inline && match ? (
+                          <div className="relative group rounded-xl overflow-hidden my-6 border border-zinc-800 shadow-2xl bg-[#1e1e1e]">
+                            {/* Top Bar matching OpenAI style */}
+                            <div className="flex justify-between items-center px-4 py-2 bg-[#2d2d2d] border-b border-zinc-700/50">
+                              <div className="flex items-center gap-2 text-zinc-300 text-xs font-semibold">
+                                <Code className="w-4 h-4" />
+                                <span className="capitalize">{language === 'python' ? 'Python' : language}</span>
+                              </div>
+                              <div className="flex items-center gap-3">
+                                <button 
+                                  onClick={handleCopy}
+                                  className="text-zinc-400 hover:text-zinc-100 transition-colors flex items-center gap-1.5 text-xs"
+                                  title="Copy code"
+                                >
+                                  {isCopied ? <CheckCircle className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
+                                </button>
+                                
+                                {/* Fake Run Button for UI aesthetics */}
+                                <button 
+                                  className="flex items-center gap-1.5 text-xs text-zinc-300 hover:text-white bg-zinc-700/50 hover:bg-zinc-600/80 px-3 py-1 rounded-full transition-colors border border-zinc-600/50"
+                                  title="Run (Demo Only)"
+                                >
+                                  <Play className="w-3.5 h-3.5 fill-current" />
+                                  Run
+                                </button>
+                              </div>
+                            </div>
+                            
+                            {/* Code Content */}
+                            <div className="text-sm">
+                              <SyntaxHighlighter
+                                {...props}
+                                style={vscDarkPlus}
+                                language={language}
+                                PreTag="div"
+                                customStyle={{
+                                  margin: 0,
+                                  padding: '1rem',
+                                  background: 'transparent',
+                                }}
+                                codeTagProps={{
+                                  style: { fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace' }
+                                }}
+                              >
+                                {String(children).replace(/\n$/, '')}
+                              </SyntaxHighlighter>
+                            </div>
+                          </div>
+                        ) : (
+                          <code className="bg-zinc-800 px-1.5 py-0.5 rounded text-emerald-400 text-sm" {...props}>
+                            {children}
+                          </code>
+                        )
+                      }
+                    }}
+                  >
                     {msg.content}
                   </ReactMarkdown>
                 </div>

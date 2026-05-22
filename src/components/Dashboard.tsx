@@ -22,7 +22,8 @@ import {
   Eye,
   EyeOff,
   Briefcase,
-  Cpu
+  Cpu,
+  Microscope
 } from "lucide-react";
 import { chunkText } from "@/lib/rag-helper";
 import { SUPPORTED_MODELS } from "@/lib/openrouter";
@@ -31,6 +32,7 @@ import FlashcardViewer from "./FlashcardViewer";
 import QuizBuilder from "./QuizBuilder";
 import ResumeBuilder from "./ResumeBuilder";
 import AtsScanner from "./AtsScanner";
+import PaperAnalyzer from "./PaperAnalyzer";
 import { useUser, useAuth, UserButton, SignOutButton } from "@clerk/nextjs";
 import { createClerkSupabaseClient } from "@/lib/supabaseClient";
 
@@ -43,7 +45,7 @@ interface DashboardProps {
 
 export default function Dashboard({ onBackToLanding, isDarkMode, toggleTheme, initialUploadTriggered = false }: DashboardProps) {
   // Navigation
-  const [activeTab, setActiveTab] = useState<"tutor" | "flashcards" | "quiz" | "settings" | "resume" | "ats">("tutor");
+  const [activeTab, setActiveTab] = useState<"tutor" | "flashcards" | "quiz" | "settings" | "resume" | "ats" | "paper">("tutor");
   
   // Document State
   const [pdfName, setPdfName] = useState("");
@@ -54,8 +56,10 @@ export default function Dashboard({ onBackToLanding, isDarkMode, toggleTheme, in
   
   // Settings State
   const [openRouterKey, setOpenRouterKey] = useState("");
+  const [geminiKey, setGeminiKey] = useState("");
   const [selectedModel, setSelectedModel] = useState("meta-llama/llama-3.3-70b-instruct:free");
   const [showKey, setShowKey] = useState(false);
+  const [showGeminiKey, setShowGeminiKey] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
   // Clerk Hook
@@ -78,7 +82,9 @@ export default function Dashboard({ onBackToLanding, isDarkMode, toggleTheme, in
     // Load API Key per user (defaults to empty so each user must provide their own)
     if (user?.id) {
       const key = localStorage.getItem(`jake_openrouter_key_${user.id}`) || "";
+      const gKey = localStorage.getItem(`jake_gemini_key_${user.id}`) || "";
       setOpenRouterKey(key);
+      setGeminiKey(gKey);
     }
 
     // Load Model with auto-migration from rate-limited Qwen
@@ -199,6 +205,7 @@ export default function Dashboard({ onBackToLanding, isDarkMode, toggleTheme, in
     e.preventDefault();
     if (user?.id) {
       localStorage.setItem(`jake_openrouter_key_${user.id}`, openRouterKey);
+      localStorage.setItem(`jake_gemini_key_${user.id}`, geminiKey);
     }
     localStorage.setItem("socrates_model", selectedModel);
     
@@ -347,7 +354,7 @@ export default function Dashboard({ onBackToLanding, isDarkMode, toggleTheme, in
       <div className="absolute bottom-[-10%] left-[-10%] w-[40%] h-[40%] bg-emerald-900/10 rounded-full blur-[120px] pointer-events-none" />
 
       {/* SIDEBAR NAVIGATION */}
-      <aside className="w-64 bg-zinc-900/40 border-r border-white/5 backdrop-blur-md flex flex-col justify-between p-4 z-10">
+      <aside className="w-64 shrink-0 bg-zinc-900/40 border-r border-white/5 backdrop-blur-md flex flex-col justify-between p-4 z-10">
         <div className="space-y-10">
           {/* Logo Brand */}
           <div 
@@ -374,6 +381,7 @@ export default function Dashboard({ onBackToLanding, isDarkMode, toggleTheme, in
                 { id: "quiz", label: "Practice Quizzes", icon: <HelpCircle className="w-4 h-4" /> },
                 { id: "resume", label: "ATS Resume Builder", icon: <Briefcase className="w-4 h-4" /> },
                 { id: "ats", label: "ATS Scanner", icon: <FileText className="w-4 h-4" /> },
+                { id: "paper", label: "Paper Analyzer", icon: <Microscope className="w-4 h-4" /> },
                 { id: "settings", label: "Settings & API", icon: <Settings className="w-4 h-4" /> }
               ].map((link) => (
                 <button
@@ -416,7 +424,7 @@ export default function Dashboard({ onBackToLanding, isDarkMode, toggleTheme, in
       </aside>
 
       {/* MAIN VIEWPORT */}
-      <main className="flex-1 flex flex-col z-10">
+      <main className="flex-1 flex flex-col min-w-0 z-10">
         
         {/* HEADER PANEL */}
         <header className="h-16 px-6 border-b border-zinc-800/20 flex items-center justify-between bg-black/10 backdrop-blur-md">
@@ -555,51 +563,68 @@ export default function Dashboard({ onBackToLanding, isDarkMode, toggleTheme, in
           {/* WORKSPACE MODULES (Render only if PDF parsed OR settings/resume tabs active) */}
           {(!isParsing && (pdfName || activeTab === "settings" || activeTab === "resume" || activeTab === "ats")) && (
             <div className="flex-1 min-h-0">
-              {activeTab === "tutor" && (
-                <AiTutor
-                  pdfChunks={pdfChunks}
-                  pdfName={pdfName}
-                  openRouterKey={openRouterKey}
-                  selectedModel={selectedModel}
-                  onActivityPerformed={handleActivityStreak}
-                />
-              )}
+              {(() => {
+                const activeApiKey = selectedModel.startsWith("native/") ? geminiKey : openRouterKey;
+                return (
+                  <>
+                    {activeTab === "tutor" && (
+                      <AiTutor
+                        pdfChunks={pdfChunks}
+                        pdfName={pdfName}
+                        openRouterKey={activeApiKey}
+                        selectedModel={selectedModel}
+                        onActivityPerformed={handleActivityStreak}
+                      />
+                    )}
 
-              {activeTab === "flashcards" && (
-                <FlashcardViewer
-                  pdfChunks={pdfChunks}
-                  pdfName={pdfName}
-                  openRouterKey={openRouterKey}
-                  selectedModel={selectedModel}
-                  onActivityPerformed={handleActivityStreak}
-                />
-              )}
+                    {activeTab === "flashcards" && (
+                      <FlashcardViewer
+                        pdfChunks={pdfChunks}
+                        pdfName={pdfName}
+                        openRouterKey={activeApiKey}
+                        selectedModel={selectedModel}
+                        onActivityPerformed={handleActivityStreak}
+                      />
+                    )}
 
-              {activeTab === "quiz" && (
-                <QuizBuilder
-                  pdfChunks={pdfChunks}
-                  pdfName={pdfName}
-                  openRouterKey={openRouterKey}
-                  selectedModel={selectedModel}
-                  onActivityPerformed={handleActivityStreak}
-                />
-              )}
+                    {activeTab === "quiz" && (
+                      <QuizBuilder
+                        pdfChunks={pdfChunks}
+                        pdfName={pdfName}
+                        openRouterKey={activeApiKey}
+                        selectedModel={selectedModel}
+                        onActivityPerformed={handleActivityStreak}
+                      />
+                    )}
 
-              {activeTab === "resume" && (
-                <ResumeBuilder
-                  openRouterKey={openRouterKey}
-                  selectedModel={selectedModel}
-                  onActivityPerformed={handleActivityStreak}
-                />
-              )}
+                    {activeTab === "resume" && (
+                      <ResumeBuilder
+                        openRouterKey={activeApiKey}
+                        selectedModel={selectedModel}
+                        onActivityPerformed={handleActivityStreak}
+                      />
+                    )}
 
-              {activeTab === "ats" && (
-                <AtsScanner
-                  openRouterKey={openRouterKey}
-                  selectedModel={selectedModel}
-                  onActivityPerformed={handleActivityStreak}
-                />
-              )}
+                    {activeTab === "ats" && (
+                      <AtsScanner
+                        openRouterKey={activeApiKey}
+                        selectedModel={selectedModel}
+                        onActivityPerformed={handleActivityStreak}
+                      />
+                    )}
+
+                    {activeTab === "paper" && (
+                      <PaperAnalyzer 
+                        pdfText={pdfText}
+                        pdfName={pdfName}
+                        openRouterKey={activeApiKey}
+                        selectedModel={selectedModel}
+                        onActivityPerformed={handleActivityStreak}
+                      />
+                    )}
+                  </>
+                );
+              })()}
 
               {/* SETTINGS MODULE */}
               {activeTab === "settings" && (
@@ -616,37 +641,72 @@ export default function Dashboard({ onBackToLanding, isDarkMode, toggleTheme, in
 
                   <form onSubmit={handleSaveSettings} className="space-y-6 text-left">
                     {/* API Key */}
-                    <div>
-                      <label className="text-xs font-semibold text-zinc-400 mb-2 block flex justify-between items-center">
-                        <span>OpenRouter API Key</span>
-                        <a 
-                          href="https://openrouter.ai/keys" 
-                          target="_blank" 
-                          rel="noreferrer"
-                          className="text-[10px] text-emerald-400 hover:underline"
-                        >
-                          Get Key →
-                        </a>
-                      </label>
-                      <div className="relative flex items-center">
-                        <input
-                          type={showKey ? "text" : "password"}
-                          value={openRouterKey}
-                          onChange={(e) => setOpenRouterKey(e.target.value)}
-                          placeholder="sk-or-v1-..."
-                          className="w-full h-11 bg-zinc-800 border border-zinc-700 rounded-xl pl-4 pr-12 text-sm text-zinc-200 placeholder-zinc-500 outline-none focus:border-emerald-500/50"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowKey(!showKey)}
-                          className="absolute right-3.5 text-zinc-500 hover:text-zinc-300 cursor-pointer"
-                        >
-                          {showKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                        </button>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-xs font-semibold text-zinc-400 mb-2 block flex justify-between items-center">
+                          <span>OpenRouter API Key</span>
+                          <a 
+                            href="https://openrouter.ai/keys" 
+                            target="_blank" 
+                            rel="noreferrer"
+                            className="text-[10px] text-emerald-400 hover:underline"
+                          >
+                            Get Key →
+                          </a>
+                        </label>
+                        <div className="relative flex items-center">
+                          <input
+                            type={showKey ? "text" : "password"}
+                            value={openRouterKey}
+                            onChange={(e) => setOpenRouterKey(e.target.value)}
+                            placeholder="sk-or-v1-..."
+                            className="w-full h-11 bg-zinc-800 border border-zinc-700 rounded-xl pl-4 pr-12 text-sm text-zinc-200 placeholder-zinc-500 outline-none focus:border-emerald-500/50"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowKey(!showKey)}
+                            className="absolute right-3.5 text-zinc-500 hover:text-zinc-300 cursor-pointer"
+                          >
+                            {showKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                          </button>
+                        </div>
+                        <span className="text-[10px] text-zinc-500 mt-1.5 block">
+                          Enter <strong>"demo"</strong> to run in offline simulator mode without API limits.
+                        </span>
                       </div>
-                      <span className="text-[10px] text-zinc-500 mt-1.5 block">
-                        Saved in local browser memory only. Enter <strong>"demo"</strong> to run in offline simulator mode without API limits.
-                      </span>
+
+                      <div>
+                        <label className="text-xs font-semibold text-zinc-400 mb-2 block flex justify-between items-center">
+                          <span>Google AI Studio Key</span>
+                          <a 
+                            href="https://aistudio.google.com/app/apikey" 
+                            target="_blank" 
+                            rel="noreferrer"
+                            className="text-[10px] text-emerald-400 hover:underline"
+                          >
+                            Get Key →
+                          </a>
+                        </label>
+                        <div className="relative flex items-center">
+                          <input
+                            type={showGeminiKey ? "text" : "password"}
+                            value={geminiKey}
+                            onChange={(e) => setGeminiKey(e.target.value)}
+                            placeholder="AIzaSy..."
+                            className="w-full h-11 bg-zinc-800 border border-zinc-700 rounded-xl pl-4 pr-12 text-sm text-zinc-200 placeholder-zinc-500 outline-none focus:border-emerald-500/50"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowGeminiKey(!showGeminiKey)}
+                            className="absolute right-3.5 text-zinc-500 hover:text-zinc-300 cursor-pointer"
+                          >
+                            {showGeminiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                          </button>
+                        </div>
+                        <span className="text-[10px] text-zinc-500 mt-1.5 block">
+                          Used only for Native Gemini models to completely bypass OpenRouter.
+                        </span>
+                      </div>
                     </div>
 
                     {/* Model Dropdown */}
