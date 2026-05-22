@@ -17,7 +17,8 @@
 ## 📸 Screenshots & Demo Proof
 
 ### Landing Page & Full Dashboard Walkthrough
-> 🎥 https://github.com/user-attachments/assets/c14df14c-a33e-43b4-bb07-d4c000a5bc0b
+
+https://github.com/user-attachments/assets/c14df14c-a33e-43b4-bb07-d4c000a5bc0b
 
 This screen recording shows the complete user journey: the animated landing page with glassmorphism UI, Clerk authentication, document upload flow, and all six platform modules in action.
 
@@ -31,7 +32,8 @@ The Overleaf-style split-pane resume editor with real-time LaTeX preview, AI sug
 ---
 
 ### Research Paper Analyzer — Live Code Generation
-> 🎥 
+
+https://github.com/user-attachments/assets/f7d9671a-e704-4fce-97e6-60886f9c5b23
 
 Watch the AI read the famous "Attention Is All You Need" paper and generate a complete PyTorch Transformer implementation in real-time, streamed directly into a syntax-highlighted dual-pane code editor.
 
