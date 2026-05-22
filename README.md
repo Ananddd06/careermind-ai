@@ -1,3 +1,4 @@
+
 <p align="center">
   <img src="https://img.shields.io/badge/Next.js-16-black?style=for-the-badge&logo=next.js" />
   <img src="https://img.shields.io/badge/React-19-61DAFB?style=for-the-badge&logo=react" />
@@ -14,6 +15,8 @@
 ---
 
 ## 📸 Screenshots & Demo Proof
+
+https://github.com/user-attachments/assets/c14df14c-a33e-43b4-bb07-d4c000a5bc0b
 
 ### Landing Page & Full Dashboard Walkthrough
 > 🎥 **[Click to download the full landing page screen recording](./public/landing_page_demo.mov)**
