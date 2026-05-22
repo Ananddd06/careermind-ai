@@ -21,7 +21,8 @@ import {
   Sun,
   Eye,
   EyeOff,
-  Briefcase
+  Briefcase,
+  Cpu
 } from "lucide-react";
 import { chunkText } from "@/lib/rag-helper";
 import { SUPPORTED_MODELS } from "@/lib/openrouter";
@@ -29,6 +30,9 @@ import AiTutor from "./AiTutor";
 import FlashcardViewer from "./FlashcardViewer";
 import QuizBuilder from "./QuizBuilder";
 import ResumeBuilder from "./ResumeBuilder";
+import AtsScanner from "./AtsScanner";
+import { useUser, useAuth, UserButton, SignOutButton } from "@clerk/nextjs";
+import { createClerkSupabaseClient } from "@/lib/supabaseClient";
 
 interface DashboardProps {
   onBackToLanding: () => void;
@@ -39,7 +43,7 @@ interface DashboardProps {
 
 export default function Dashboard({ onBackToLanding, isDarkMode, toggleTheme, initialUploadTriggered = false }: DashboardProps) {
   // Navigation
-  const [activeTab, setActiveTab] = useState<"tutor" | "flashcards" | "quiz" | "settings" | "resume">("tutor");
+  const [activeTab, setActiveTab] = useState<"tutor" | "flashcards" | "quiz" | "settings" | "resume" | "ats">("tutor");
   
   // Document State
   const [pdfName, setPdfName] = useState("");
@@ -54,6 +58,15 @@ export default function Dashboard({ onBackToLanding, isDarkMode, toggleTheme, in
   const [showKey, setShowKey] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
+  // Clerk Hook
+  const { user } = useUser();
+  const { getToken } = useAuth();
+
+  // Usage Limit Tracker
+  const [usageCount, setUsageCount] = useState(0);
+  const [showPaywall, setShowPaywall] = useState(false);
+  const [isCheckingOut, setIsCheckingOut] = useState(false);
+
   // Study Tracker
   const [studyStreak, setStudyStreak] = useState(1);
 
@@ -62,10 +75,12 @@ export default function Dashboard({ onBackToLanding, isDarkMode, toggleTheme, in
 
   // Load configuration and cached documents on mount
   useEffect(() => {
-    // Load API Key (defaults to 'demo' for immediate offline simulator access)
-    const key = localStorage.getItem("socrates_openrouter_key") || "demo";
-    setOpenRouterKey(key);
-    
+    // Load API Key per user (defaults to empty so each user must provide their own)
+    if (user?.id) {
+      const key = localStorage.getItem(`jake_openrouter_key_${user.id}`) || "";
+      setOpenRouterKey(key);
+    }
+
     // Load Model with auto-migration from rate-limited Qwen
     let model = localStorage.getItem("socrates_model");
     if (!model || model === "qwen/qwen3-next-80b-a3b-instruct:free") {
@@ -74,35 +89,117 @@ export default function Dashboard({ onBackToLanding, isDarkMode, toggleTheme, in
     }
     setSelectedModel(model);
 
-    // Load Study Streak
-    const streak = localStorage.getItem("socrates_study_streak");
-    if (streak) {
-      setStudyStreak(parseInt(streak, 10));
+    // Load Study Streak (Only if logged in)
+    if (user?.id) {
+      const streak = localStorage.getItem(`jake_study_streak_${user.id}`);
+      if (streak) {
+        setStudyStreak(parseInt(streak, 10));
+      } else {
+        localStorage.setItem(`jake_study_streak_${user.id}`, "1");
+        setStudyStreak(1);
+      }
     } else {
-      localStorage.setItem("socrates_study_streak", "1");
+      setStudyStreak(1);
     }
 
-    // Load Last parsed PDF if exists
-    const cachedPdfName = localStorage.getItem("socrates_cached_pdf_name");
-    const cachedPdfText = localStorage.getItem("socrates_cached_pdf_text");
-    if (cachedPdfName && cachedPdfText) {
-      setPdfName(cachedPdfName);
-      setPdfText(cachedPdfText);
-      setPdfChunks(chunkText(cachedPdfText));
+    // Load Last parsed PDF if exists per user
+    let currentPdfName = "";
+    if (user?.id) {
+      currentPdfName = localStorage.getItem(`jake_cached_pdf_name_${user.id}`) || "";
+      const cachedPdfText = localStorage.getItem(`jake_cached_pdf_text_${user.id}`);
+      if (currentPdfName && cachedPdfText) {
+        setPdfName(currentPdfName);
+        setPdfText(cachedPdfText);
+        setPdfChunks(chunkText(cachedPdfText));
+      } else {
+        setPdfName("");
+        setPdfText("");
+        setPdfChunks([]);
+      }
+    } else {
+      setPdfName("");
+      setPdfText("");
+      setPdfChunks([]);
     }
+
+    // Load Usage Count based on User ID
+    if (user?.id) {
+      const usageKey = `jake_usage_count_${user.id}`;
+      const count = parseInt(localStorage.getItem(usageKey) || "0", 10);
+      setUsageCount(count);
+      if (count >= 10) {
+        setShowPaywall(true);
+      }
+    }
+
+    // Attempt to sync with Supabase (if JWT template is configured)
+    const syncSupabase = async () => {
+      if (!user?.id) return;
+      try {
+        console.log("Fetching Clerk token for Supabase...");
+        const token = await getToken({ template: 'supabase' });
+        console.log("Token received:", token ? "YES (hidden)" : "NULL");
+        
+        if (!token) {
+          console.error("TOKEN IS NULL! This means the JWT template named 'supabase' does not exist in the Clerk Dashboard, or the user is not signed in properly.");
+          return;
+        }
+        
+        const supabase = createClerkSupabaseClient(token);
+        
+        // Try to fetch user
+        const { data: existingUser, error: fetchError } = await supabase
+          .from('users')
+          .select('usage_count, study_streak, tier')
+          .eq('id', user.id)
+          .single();
+          
+        if (existingUser) {
+          setUsageCount(existingUser.usage_count);
+          setStudyStreak(existingUser.study_streak);
+          if (existingUser.usage_count >= 10 && existingUser.tier === 'free') {
+            setShowPaywall(true);
+          }
+          // Update local storage to match database truth
+          localStorage.setItem(`jake_usage_count_${user.id}`, existingUser.usage_count.toString());
+          localStorage.setItem(`jake_study_streak_${user.id}`, existingUser.study_streak.toString());
+        } else if (fetchError && fetchError.code === 'PGRST116') {
+          // User doesn't exist yet, insert them
+          const { error: insertError } = await supabase.from('users').insert({
+            id: user.id,
+            email: user.primaryEmailAddress?.emailAddress || '',
+            first_name: user.firstName || '',
+            last_name: user.lastName || '',
+            usage_count: parseInt(localStorage.getItem(`jake_usage_count_${user.id}`) || "0", 10),
+            study_streak: parseInt(localStorage.getItem(`jake_study_streak_${user.id}`) || "1", 10)
+          });
+          
+          if (insertError) {
+            console.error("Supabase insert error details:", insertError);
+          } else {
+            console.log("Successfully inserted user into Supabase");
+          }
+        }
+      } catch (err) {
+        console.warn("Supabase sync failed (likely JWT template not set up yet):", err);
+      }
+    };
+    syncSupabase();
 
     // Automatically trigger file upload dialog if requested from hero
-    if (initialUploadTriggered && !cachedPdfName) {
+    if (initialUploadTriggered && !currentPdfName) {
       setTimeout(() => {
         fileInputRef.current?.click();
       }, 500);
     }
-  }, [initialUploadTriggered]);
+  }, [initialUploadTriggered, user?.id]);
 
   // Handle saving configurations
   const handleSaveSettings = (e: React.FormEvent) => {
     e.preventDefault();
-    localStorage.setItem("socrates_openrouter_key", openRouterKey);
+    if (user?.id) {
+      localStorage.setItem(`jake_openrouter_key_${user.id}`, openRouterKey);
+    }
     localStorage.setItem("socrates_model", selectedModel);
     
     setSaveSuccess(true);
@@ -133,9 +230,11 @@ export default function Dashboard({ onBackToLanding, isDarkMode, toggleTheme, in
       const chunks = chunkText(extractedText);
       setPdfChunks(chunks);
 
-      // Cache document locally
-      localStorage.setItem("socrates_cached_pdf_name", file.name);
-      localStorage.setItem("socrates_cached_pdf_text", extractedText);
+      // Cache document locally per user
+      if (user?.id) {
+        localStorage.setItem(`jake_cached_pdf_name_${user.id}`, file.name);
+        localStorage.setItem(`jake_cached_pdf_text_${user.id}`, extractedText);
+      }
     } catch (err: any) {
       console.error(err);
       setParseError(err.message || "An error occurred during file parsing.");
@@ -163,88 +262,156 @@ export default function Dashboard({ onBackToLanding, isDarkMode, toggleTheme, in
     setPdfName("");
     setPdfText("");
     setPdfChunks([]);
-    localStorage.removeItem("socrates_cached_pdf_name");
-    localStorage.removeItem("socrates_cached_pdf_text");
+    if (user?.id) {
+      localStorage.removeItem(`jake_cached_pdf_name_${user.id}`);
+      localStorage.removeItem(`jake_cached_pdf_text_${user.id}`);
+    }
   };
 
-  // Increments streak on study action (max once per session)
-  const handleActivityStreak = () => {
-    // Increment study streak
-    const lastDate = localStorage.getItem("socrates_last_active_date");
-    const today = new Date().toDateString();
-    
-    if (lastDate !== today) {
-      const newStreak = studyStreak + 1;
-      setStudyStreak(newStreak);
-      localStorage.setItem("socrates_study_streak", newStreak.toString());
-      localStorage.setItem("socrates_last_active_date", today);
+  // Handle Stripe checkout
+  const handleCheckout = async (tier: string) => {
+    try {
+      setIsCheckingOut(true);
+      const res = await fetch('/api/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tier })
+      });
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        alert('Checkout failed: ' + (data.error || 'Unknown error'));
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Something went wrong with checkout.');
+    } finally {
+      setIsCheckingOut(false);
+    }
+  };
+
+  // Increments streak on study action (max once per session) and Usage Count
+  const handleActivityStreak = async () => {
+    let newUsageCount = usageCount;
+    let newStudyStreak = studyStreak;
+    let lastDate = "";
+    let today = new Date().toDateString();
+
+    if (user?.id) {
+      const usageKey = `jake_usage_count_${user.id}`;
+      newUsageCount = usageCount + 1;
+      setUsageCount(newUsageCount);
+      localStorage.setItem(usageKey, newUsageCount.toString());
+      
+      if (newUsageCount >= 10) {
+        setShowPaywall(true);
+      }
+    }
+
+    // Increment study streak (Only if logged in)
+    if (user?.id) {
+      lastDate = localStorage.getItem(`jake_last_active_date_${user.id}`) || "";
+      
+      if (lastDate !== today) {
+        newStudyStreak = studyStreak + 1;
+        setStudyStreak(newStudyStreak);
+        localStorage.setItem(`jake_study_streak_${user.id}`, newStudyStreak.toString());
+        localStorage.setItem(`jake_last_active_date_${user.id}`, today);
+      }
+    }
+
+    // Sync updates to Supabase
+    if (user?.id) {
+      try {
+        const token = await getToken({ template: 'supabase' });
+        if (token) {
+          const supabase = createClerkSupabaseClient(token);
+          await supabase.from('users').update({
+            usage_count: newUsageCount,
+            study_streak: newStudyStreak,
+            last_active_date: new Date().toISOString()
+          }).eq('id', user.id);
+        }
+      } catch (err) {
+        console.warn("Supabase update failed:", err);
+      }
     }
   };
 
   return (
-    <div className="flex h-screen bg-brand-bg relative overflow-hidden">
+    <>
+      <div className="flex-1 w-full flex bg-zinc-950 text-zinc-100 overflow-hidden font-sans selection:bg-emerald-500/30">
       {/* Background radial overlays */}
-      <div className="absolute top-0 right-0 w-[400px] h-[400px] glow-spot-primary opacity-30 pointer-events-none" />
-      <div className="absolute bottom-0 left-0 w-[400px] h-[400px] glow-spot-secondary opacity-30 pointer-events-none" />
+      <div className="absolute top-[-10%] right-[-10%] w-[40%] h-[40%] bg-indigo-900/10 rounded-full blur-[120px] pointer-events-none" />
+      <div className="absolute bottom-[-10%] left-[-10%] w-[40%] h-[40%] bg-emerald-900/10 rounded-full blur-[120px] pointer-events-none" />
 
       {/* SIDEBAR NAVIGATION */}
-      <aside className="w-64 bg-black/40 border-r border-brand-border/30 backdrop-blur-md flex flex-col justify-between p-4 z-10">
-        <div className="space-y-6">
+      <aside className="w-64 bg-zinc-900/40 border-r border-white/5 backdrop-blur-md flex flex-col justify-between p-4 z-10">
+        <div className="space-y-10">
           {/* Logo Brand */}
           <div 
             onClick={onBackToLanding}
-            className="flex items-center gap-2 px-2 cursor-pointer hover:opacity-90"
+            className="flex items-center gap-2 px-2 cursor-pointer hover:opacity-90 mt-2"
           >
-            <div className="w-9 h-9 rounded-lg bg-gradient-to-tr from-violet-600 to-indigo-500 flex items-center justify-center shadow-lg shadow-violet-500/20">
-              <GraduationCap className="w-5 h-5 text-white" />
+            <div className="w-9 h-9 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center shadow-sm">
+              <Cpu className="w-5 h-5 text-zinc-100" />
             </div>
-            <span className="text-lg font-bold bg-gradient-to-r from-white to-violet-200 bg-clip-text text-transparent">
-              Socrates AI
+            <span className="text-xl font-bold tracking-tight text-zinc-100">
+              HireForge AI
             </span>
           </div>
 
           {/* Navigation Links */}
-          <nav className="space-y-1">
-            {[
-              { id: "tutor", label: "AI Tutor Chat", icon: <MessageSquare className="w-4 h-4" /> },
-              { id: "flashcards", label: "Flashcard Decks", icon: <Layers className="w-4 h-4" /> },
-              { id: "quiz", label: "Practice Quizzes", icon: <HelpCircle className="w-4 h-4" /> },
-              { id: "resume", label: "Interview Resume", icon: <Briefcase className="w-4 h-4" /> },
-              { id: "settings", label: "Settings & API", icon: <Settings className="w-4 h-4" /> }
-            ].map((link) => (
-              <button
-                key={link.id}
-                onClick={() => setActiveTab(link.id as any)}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all text-left cursor-pointer ${
-                  activeTab === link.id
-                    ? "bg-violet-600 text-white shadow-lg shadow-violet-600/15"
-                    : "text-slate-400 hover:text-slate-200 hover:bg-white/5"
-                }`}
-              >
-                {link.icon}
-                {link.label}
-              </button>
-            ))}
-          </nav>
+          <div>
+            <div className="px-3 mb-3 text-[10px] font-bold tracking-wider text-zinc-500 uppercase">
+              Platform
+            </div>
+            <nav className="space-y-1.5">
+              {[
+                { id: "tutor", label: "PDF Intelligence", icon: <MessageSquare className="w-4 h-4" /> },
+                { id: "flashcards", label: "Flashcard Decks", icon: <Layers className="w-4 h-4" /> },
+                { id: "quiz", label: "Practice Quizzes", icon: <HelpCircle className="w-4 h-4" /> },
+                { id: "resume", label: "ATS Resume Builder", icon: <Briefcase className="w-4 h-4" /> },
+                { id: "ats", label: "ATS Scanner", icon: <FileText className="w-4 h-4" /> },
+                { id: "settings", label: "Settings & API", icon: <Settings className="w-4 h-4" /> }
+              ].map((link) => (
+                <button
+                  key={link.id}
+                  onClick={() => setActiveTab(link.id as any)}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all text-left cursor-pointer ${
+                    activeTab === link.id
+                      ? "bg-zinc-800/80 text-zinc-100 shadow-sm border border-zinc-700/50"
+                      : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40 border border-transparent"
+                  }`}
+                >
+                  {link.icon}
+                  {link.label}
+                </button>
+              ))}
+            </nav>
+          </div>
         </div>
 
         {/* Sidebar Footer Details */}
-        <div className="space-y-4 pt-4 border-t border-brand-border/20">
+        <div className="space-y-4 pt-4 border-t border-white/5">
           {/* Study Streak Badge */}
-          <div className="flex items-center justify-between bg-violet-600/10 border border-violet-500/20 rounded-xl p-3 text-xs">
-            <span className="text-slate-400 font-semibold flex items-center gap-1.5">
-              <Flame className="w-4 h-4 text-orange-500 fill-orange-500" /> Study Streak
+          <div className="flex items-center justify-between bg-zinc-900 border border-zinc-800 rounded-lg p-3 text-xs">
+            <span className="text-zinc-400 font-medium flex items-center gap-1.5">
+              <Flame className="w-4 h-4 text-emerald-500 fill-emerald-500/20" /> Login Streak
             </span>
-            <strong className="text-slate-100">{studyStreak} Days</strong>
+            <strong className="text-zinc-100">{studyStreak} Days</strong>
           </div>
 
-          <button
-            onClick={onBackToLanding}
-            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold text-slate-500 hover:text-slate-300 hover:bg-white/5 transition-colors text-left cursor-pointer"
-          >
-            <LogOut className="w-3.5 h-3.5" />
-            Exit to Homepage
-          </button>
+          <SignOutButton signOutOptions={{ sessionId: undefined }}>
+            <button
+              onClick={onBackToLanding}
+              className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 transition-colors text-left cursor-pointer"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              Exit & Sign Out
+            </button>
+          </SignOutButton>
         </div>
       </aside>
 
@@ -252,7 +419,7 @@ export default function Dashboard({ onBackToLanding, isDarkMode, toggleTheme, in
       <main className="flex-1 flex flex-col z-10">
         
         {/* HEADER PANEL */}
-        <header className="h-16 px-6 border-b border-brand-border/20 flex items-center justify-between bg-black/10 backdrop-blur-md">
+        <header className="h-16 px-6 border-b border-zinc-800/20 flex items-center justify-between bg-black/10 backdrop-blur-md">
           {/* Active document notification */}
           <div className="flex items-center gap-3">
             {pdfName ? (
@@ -268,8 +435,8 @@ export default function Dashboard({ onBackToLanding, isDarkMode, toggleTheme, in
                 </button>
               </div>
             ) : (
-              <div className="flex items-center gap-2 bg-slate-900 border border-brand-border/30 px-3 py-1.5 rounded-xl text-xs text-slate-400">
-                <AlertCircle className="w-3.5 h-3.5 shrink-0 text-slate-500" />
+              <div className="flex items-center gap-2 bg-zinc-900 border border-zinc-800/30 px-3 py-1.5 rounded-xl text-xs text-zinc-400">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0 text-zinc-500" />
                 <span>No document uploaded</span>
               </div>
             )}
@@ -293,25 +460,41 @@ export default function Dashboard({ onBackToLanding, isDarkMode, toggleTheme, in
             {/* Theme toggle */}
             <button 
               onClick={toggleTheme}
-              className="p-2 rounded-xl border border-brand-border/30 hover:bg-white/5 text-slate-400 hover:text-slate-200 cursor-pointer"
+              className="p-2 rounded-xl border border-zinc-800/30 hover:bg-white/5 text-zinc-400 hover:text-zinc-200 cursor-pointer"
               aria-label="Toggle theme"
             >
               {isDarkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
             </button>
           </div>
+
+          <div className="flex items-center gap-4">
+            <div className="flex flex-col items-end">
+              <div className="text-[10px] uppercase font-bold text-zinc-500 tracking-wider">Free Uses</div>
+              <div className={`text-xs font-mono font-bold ${usageCount >= 10 ? 'text-rose-400' : 'text-emerald-400'}`}>
+                {usageCount} / 10
+              </div>
+            </div>
+            
+            {user && (
+              <span className="text-sm font-semibold text-zinc-300">
+                Hi, {user.firstName || user.username || "User"}
+              </span>
+            )}
+            <UserButton appearance={{ elements: { userButtonAvatarBox: "w-8 h-8 rounded-lg" } }} />
+          </div>
         </header>
 
         {/* WORKSPACE AREA */}
-        <div className="flex-1 p-6 overflow-y-auto">
+        <div className="flex-1 px-6 pt-8 pb-4 overflow-y-auto flex flex-col">
           
           {/* UPLOAD SCREEN (Prompt if no document, except when in Settings tab) */}
-          {!pdfName && activeTab !== "settings" && activeTab !== "resume" && !isParsing && (
+          {!pdfName && activeTab !== "settings" && activeTab !== "resume" && activeTab !== "ats" && !isParsing && (
             <div className="max-w-2xl mx-auto mt-12 text-center">
               <h2 className="text-2xl md:text-3xl font-extrabold tracking-tight mb-2">
                 Upload Your Study Materials
               </h2>
-              <p className="text-slate-400 text-sm max-w-md mx-auto mb-8 leading-relaxed">
-                Add lecture slides, textbook chapters, or assignments. Socrates reads the content and builds questions and chat responses.
+              <p className="text-zinc-400 text-sm max-w-md mx-auto mb-8 leading-relaxed">
+                Add lecture slides, textbook chapters, or assignments. HireForge reads the content and builds questions and chat responses.
               </p>
 
               {/* Drag Drop Area */}
@@ -319,18 +502,18 @@ export default function Dashboard({ onBackToLanding, isDarkMode, toggleTheme, in
                 onDragOver={handleDragOver}
                 onDrop={handleDrop}
                 onClick={() => fileInputRef.current?.click()}
-                className="glass-panel border-2 border-dashed border-brand-border/60 hover:border-violet-500/50 hover:bg-violet-500/5 duration-300 rounded-3xl p-12 flex flex-col items-center gap-4 cursor-pointer"
+                className="bg-zinc-900 border-2 border-dashed border-zinc-800 hover:border-emerald-500/50 hover:bg-zinc-800/50 duration-300 rounded-3xl p-12 flex flex-col items-center gap-4 cursor-pointer"
               >
-                <div className="w-16 h-16 rounded-2xl bg-white/5 border border-brand-border/20 flex items-center justify-center text-violet-400">
+                <div className="w-16 h-16 rounded-2xl bg-zinc-950 border border-zinc-800 flex items-center justify-center text-emerald-400 shadow-sm">
                   <UploadCloud className="w-8 h-8 animate-bounce" />
                 </div>
                 <div>
-                  <h4 className="text-base font-bold text-slate-200">Drag & drop your study PDF here</h4>
-                  <p className="text-xs text-slate-500 mt-1">Accepts standard PDF documents up to 50MB</p>
+                  <h4 className="text-base font-bold text-zinc-200">Drag & drop your study PDF here</h4>
+                  <p className="text-xs text-zinc-500 mt-1">Accepts standard PDF documents up to 50MB</p>
                 </div>
                 <button
                   type="button"
-                  className="mt-2 px-5 py-2.5 bg-violet-600 hover:bg-violet-700 font-bold text-xs text-white rounded-xl shadow-lg shadow-violet-500/10 cursor-pointer"
+                  className="mt-2 px-5 py-2.5 bg-zinc-100 hover:bg-white font-semibold text-sm text-zinc-900 rounded-lg shadow-sm transition-colors cursor-pointer"
                 >
                   Choose Local File
                 </button>
@@ -358,11 +541,11 @@ export default function Dashboard({ onBackToLanding, isDarkMode, toggleTheme, in
           {/* SKELETON PARSER LOADER */}
           {isParsing && (
             <div className="max-w-md mx-auto mt-16 text-center space-y-6">
-              <div className="relative w-full h-48 bg-brand-card border border-brand-border/40 rounded-2xl flex flex-col items-center justify-center overflow-hidden">
+              <div className="relative w-full h-48 bg-zinc-900 border border-zinc-800/40 rounded-2xl flex flex-col items-center justify-center overflow-hidden">
                 <div className="absolute inset-0 shimmer-bg" />
                 <div className="z-10 flex flex-col items-center gap-3">
-                  <div className="w-10 h-10 rounded-full border-2 border-t-violet-500 border-r-transparent border-b-transparent border-l-transparent animate-spin" />
-                  <span className="text-sm font-semibold text-slate-400">Extracting text layout...</span>
+                  <div className="w-10 h-10 rounded-full border-2 border-t-emerald-500 border-r-transparent border-b-transparent border-l-transparent animate-spin" />
+                  <span className="text-sm font-semibold text-zinc-400">Extracting text layout...</span>
                 </div>
               </div>
               <div className="h-4 bg-slate-800 rounded-full w-2/3 mx-auto animate-pulse" />
@@ -370,8 +553,8 @@ export default function Dashboard({ onBackToLanding, isDarkMode, toggleTheme, in
           )}
 
           {/* WORKSPACE MODULES (Render only if PDF parsed OR settings/resume tabs active) */}
-          {(!isParsing && (pdfName || activeTab === "settings" || activeTab === "resume")) && (
-            <div className="h-full">
+          {(!isParsing && (pdfName || activeTab === "settings" || activeTab === "resume" || activeTab === "ats")) && (
+            <div className="flex-1 min-h-0">
               {activeTab === "tutor" && (
                 <AiTutor
                   pdfChunks={pdfChunks}
@@ -410,29 +593,37 @@ export default function Dashboard({ onBackToLanding, isDarkMode, toggleTheme, in
                 />
               )}
 
+              {activeTab === "ats" && (
+                <AtsScanner
+                  openRouterKey={openRouterKey}
+                  selectedModel={selectedModel}
+                  onActivityPerformed={handleActivityStreak}
+                />
+              )}
+
               {/* SETTINGS MODULE */}
               {activeTab === "settings" && (
-                <div className="max-w-xl mx-auto bg-brand-card/20 border border-brand-border/30 rounded-2xl p-6 glass-panel">
-                  <div className="flex items-center gap-3 mb-6 pb-4 border-b border-brand-border/10">
+                <div className="max-w-xl mx-auto bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-2xl">
+                  <div className="flex items-center gap-3 mb-6 pb-4 border-b border-zinc-800">
                     <div className="w-8 h-8 rounded-lg bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400">
                       <Settings className="w-4 h-4" />
                     </div>
                     <div>
-                      <h3 className="font-bold text-slate-100 text-sm">System Configuration</h3>
-                      <p className="text-slate-500 text-xs">Setup your OpenRouter credentials</p>
+                      <h3 className="font-bold text-zinc-100 text-sm">System Configuration</h3>
+                      <p className="text-zinc-500 text-xs">Setup your OpenRouter credentials</p>
                     </div>
                   </div>
 
                   <form onSubmit={handleSaveSettings} className="space-y-6 text-left">
                     {/* API Key */}
                     <div>
-                      <label className="text-xs font-semibold text-slate-400 mb-2 block flex justify-between items-center">
+                      <label className="text-xs font-semibold text-zinc-400 mb-2 block flex justify-between items-center">
                         <span>OpenRouter API Key</span>
                         <a 
                           href="https://openrouter.ai/keys" 
                           target="_blank" 
                           rel="noreferrer"
-                          className="text-[10px] text-violet-400 hover:underline"
+                          className="text-[10px] text-emerald-400 hover:underline"
                         >
                           Get Key →
                         </a>
@@ -443,29 +634,29 @@ export default function Dashboard({ onBackToLanding, isDarkMode, toggleTheme, in
                           value={openRouterKey}
                           onChange={(e) => setOpenRouterKey(e.target.value)}
                           placeholder="sk-or-v1-..."
-                          className="w-full h-11 bg-white/5 border border-brand-border/40 rounded-xl pl-4 pr-12 text-sm text-slate-200 placeholder-slate-600 outline-none focus:border-violet-500/50"
+                          className="w-full h-11 bg-zinc-800 border border-zinc-700 rounded-xl pl-4 pr-12 text-sm text-zinc-200 placeholder-zinc-500 outline-none focus:border-emerald-500/50"
                         />
                         <button
                           type="button"
                           onClick={() => setShowKey(!showKey)}
-                          className="absolute right-3.5 text-slate-500 hover:text-slate-300 cursor-pointer"
+                          className="absolute right-3.5 text-zinc-500 hover:text-zinc-300 cursor-pointer"
                         >
                           {showKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                         </button>
                       </div>
-                      <span className="text-[10px] text-slate-500 mt-1.5 block">
+                      <span className="text-[10px] text-zinc-500 mt-1.5 block">
                         Saved in local browser memory only. Enter <strong>"demo"</strong> to run in offline simulator mode without API limits.
                       </span>
                     </div>
 
                     {/* Model Dropdown */}
                     <div>
-                      <label className="text-xs font-semibold text-slate-400 mb-2 block">AI Inference Model</label>
+                      <label className="text-xs font-semibold text-zinc-400 mb-2 block">AI Inference Model</label>
                       <div className="relative">
                         <select
                           value={selectedModel}
                           onChange={(e) => setSelectedModel(e.target.value)}
-                          className="w-full h-11 bg-slate-900 border border-brand-border/40 rounded-xl px-4 text-sm text-slate-200 outline-none appearance-none cursor-pointer focus:border-violet-500/50"
+                          className="w-full h-11 bg-zinc-800 border border-zinc-700 rounded-xl px-4 text-sm text-zinc-200 outline-none appearance-none cursor-pointer focus:border-emerald-500/50"
                         >
                           {SUPPORTED_MODELS.map((model) => (
                             <option key={model.id} value={model.id}>
@@ -473,7 +664,7 @@ export default function Dashboard({ onBackToLanding, isDarkMode, toggleTheme, in
                             </option>
                           ))}
                         </select>
-                        <ChevronDown className="w-4 h-4 text-slate-500 absolute right-4 top-3.5 pointer-events-none" />
+                        <ChevronDown className="w-4 h-4 text-zinc-500 absolute right-4 top-3.5 pointer-events-none" />
                       </div>
                     </div>
 
@@ -481,7 +672,7 @@ export default function Dashboard({ onBackToLanding, isDarkMode, toggleTheme, in
                     <div className="flex items-center gap-4 pt-2">
                       <button
                         type="submit"
-                        className="px-6 py-3 rounded-xl font-bold bg-gradient-to-r from-violet-600 to-indigo-600 text-xs text-white shadow-lg shadow-violet-500/10 hover:opacity-95 transition-all flex items-center gap-1.5 cursor-pointer"
+                        className="px-6 py-3 rounded-xl font-bold bg-zinc-100 text-zinc-900 shadow-sm hover:bg-white transition-all flex items-center gap-1.5 cursor-pointer"
                       >
                         {saveSuccess ? (
                           <>
@@ -497,16 +688,107 @@ export default function Dashboard({ onBackToLanding, isDarkMode, toggleTheme, in
                   </form>
 
                   {/* Settings Warning Box */}
-                  <div className="mt-8 bg-indigo-950/10 border border-indigo-500/20 p-4 rounded-xl text-xs text-slate-400 leading-relaxed text-left">
-                    <strong>Model recommendation:</strong> The default model is <code>meta-llama/llama-3.3-70b-instruct:free</code>. It is highly accurate, free to query, and excels at instruction-following for quizzes and flashcards.
+                  <div className="mt-8 bg-zinc-950 border border-zinc-800 p-4 rounded-xl text-xs text-zinc-400 leading-relaxed text-left">
+                    <strong>Model recommendation:</strong> The default model is <code className="bg-zinc-800 px-1 py-0.5 rounded">meta-llama/llama-3.3-70b-instruct:free</code>. It is highly accurate, free to query, and excels at instruction-following for quizzes and flashcards.
                   </div>
                 </div>
               )}
             </div>
           )}
-
         </div>
       </main>
-    </div>
+      </div>
+
+      {/* PAYWALL MODAL */}
+      {showPaywall && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/80 backdrop-blur-xl p-6">
+          <div className="w-full max-w-5xl bg-zinc-900 border border-zinc-800 rounded-3xl shadow-2xl p-8 relative overflow-hidden">
+            <div className="absolute top-[-10%] right-[-10%] w-[40%] h-[40%] bg-emerald-900/20 rounded-full blur-[100px] pointer-events-none" />
+            
+            <div className="text-center mb-10 relative z-10">
+              <h2 className="text-3xl font-extrabold text-zinc-100 tracking-tight mb-3">
+                You've reached your free limit
+              </h2>
+              <p className="text-zinc-400 max-w-xl mx-auto">
+                You've used all 10 free AI actions. Upgrade your account to continue unlocking JAKE's premium career intelligence tools.
+              </p>
+            </div>
+
+            <div className="grid md:grid-cols-3 gap-6 relative z-10">
+              {/* Starter */}
+              <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-6 flex flex-col">
+                <h3 className="text-lg font-bold text-zinc-100 mb-2">Starter</h3>
+                <div className="flex items-baseline gap-1 mb-6">
+                  <span className="text-3xl font-extrabold text-zinc-100">₹799</span>
+                  <span className="text-zinc-500 text-xs">/ 3 months</span>
+                </div>
+                <button 
+                  onClick={() => handleCheckout('starter')}
+                  disabled={isCheckingOut}
+                  className="w-full py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-bold transition-all text-sm mb-6 disabled:opacity-50"
+                >
+                  {isCheckingOut ? 'Loading...' : 'Upgrade Starter'}
+                </button>
+                <ul className="space-y-3">
+                  <li className="flex items-center gap-2 text-xs text-zinc-300"><Sparkles className="w-3.5 h-3.5 text-emerald-500" /> 3 Months Access</li>
+                  <li className="flex items-center gap-2 text-xs text-zinc-300"><Sparkles className="w-3.5 h-3.5 text-emerald-500" /> Unlimited Resume Scans</li>
+                </ul>
+              </div>
+
+              {/* Pro (Most Popular) */}
+              <div className="bg-zinc-950 border-2 border-emerald-500/50 rounded-2xl p-6 flex flex-col relative transform md:-translate-y-4 shadow-xl shadow-emerald-900/20">
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-emerald-500 text-emerald-950 text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider">
+                  Most Popular
+                </div>
+                <h3 className="text-lg font-bold text-zinc-100 mb-2">Pro</h3>
+                <div className="flex items-baseline gap-1 mb-6">
+                  <span className="text-3xl font-extrabold text-zinc-100">₹1599</span>
+                  <span className="text-zinc-500 text-xs">/ 6 months</span>
+                </div>
+                <button 
+                  onClick={() => handleCheckout('pro')}
+                  disabled={isCheckingOut}
+                  className="w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-emerald-950 font-bold transition-all text-sm mb-6 shadow-lg shadow-emerald-500/20 disabled:opacity-50"
+                >
+                  {isCheckingOut ? 'Loading...' : 'Upgrade Pro'}
+                </button>
+                <ul className="space-y-3">
+                  <li className="flex items-center gap-2 text-xs text-zinc-300"><Sparkles className="w-3.5 h-3.5 text-emerald-500" /> 6 Months Access</li>
+                  <li className="flex items-center gap-2 text-xs text-zinc-300"><Sparkles className="w-3.5 h-3.5 text-emerald-500" /> All PDF Intelligence</li>
+                  <li className="flex items-center gap-2 text-xs text-zinc-300"><Sparkles className="w-3.5 h-3.5 text-emerald-500" /> AI Flashcards & Quizzes</li>
+                </ul>
+              </div>
+
+              {/* Elite */}
+              <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-6 flex flex-col">
+                <h3 className="text-lg font-bold text-zinc-100 mb-2">Elite</h3>
+                <div className="flex items-baseline gap-1 mb-6">
+                  <span className="text-3xl font-extrabold text-zinc-100">₹2500</span>
+                  <span className="text-zinc-500 text-xs">/ 1 year</span>
+                </div>
+                <button 
+                  onClick={() => handleCheckout('elite')}
+                  disabled={isCheckingOut}
+                  className="w-full py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-bold transition-all text-sm mb-6 disabled:opacity-50"
+                >
+                  {isCheckingOut ? 'Loading...' : 'Upgrade Elite'}
+                </button>
+                <ul className="space-y-3">
+                  <li className="flex items-center gap-2 text-xs text-zinc-300"><Sparkles className="w-3.5 h-3.5 text-emerald-500" /> 1 Full Year Access</li>
+                  <li className="flex items-center gap-2 text-xs text-zinc-300"><Sparkles className="w-3.5 h-3.5 text-emerald-500" /> All Pro Features</li>
+                </ul>
+              </div>
+            </div>
+            
+            <button 
+              onClick={onBackToLanding}
+              className="mt-8 text-center text-xs text-zinc-500 hover:text-zinc-300 underline block mx-auto relative z-10"
+            >
+              Sign out and return to Landing Page
+            </button>
+          </div>
+        </div>
+      )}
+    </>
   );
 }

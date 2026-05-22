@@ -3,17 +3,17 @@
 import React, { useState, useEffect, useRef } from "react";
 import { 
   FileText, Sparkles, FileDown, UploadCloud, RotateCcw, 
-  CheckCircle, AlertTriangle, ArrowRight, Play, Copy, RefreshCw, Key,
-  Briefcase, Edit3, Award, Search, FileCode, Check
+  Search, FileCode, Check, LayoutGrid, List, MessageSquare,
+  History, Share2, Crown, Maximize2, ZoomIn, ZoomOut, Save, MoreHorizontal,
+  ChevronRight, ChevronDown, Folder, File, Briefcase, RefreshCw, AlertTriangle
 } from "lucide-react";
 import { 
   DEFAULT_LATE_RESUME, 
   convertResumeToLatex, 
-  analyzeResume, 
-  AtsFeedback, 
   SUPPORTED_MODELS 
 } from "@/lib/openrouter";
 import { parsePdfOnClient } from "@/lib/client-pdf-parser";
+import { parseLatex } from "@/lib/resume-parser";
 
 interface ResumeBuilderProps {
   openRouterKey: string;
@@ -27,17 +27,30 @@ export default function ResumeBuilder({
   onActivityPerformed
 }: ResumeBuilderProps) {
   const [latexCode, setLatexCode] = useState(DEFAULT_LATE_RESUME);
-  const [activeSubTab, setActiveSubTab] = useState<"preview" | "ats">("preview");
-  const [jobDescription, setJobDescription] = useState("");
-  const [atsFeedback, setAtsFeedback] = useState<AtsFeedback | null>(null);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isConverting, setIsConverting] = useState(false);
   const [uploadError, setUploadError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
+  const [zoomLevel, setZoomLevel] = useState(80);
+  const [activeTab, setActiveTab] = useState<"code" | "visual">("code");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Real-time parsed resume structure
+  const formatLatexText = (text: string) => {
+    if (!text) return "";
+    return text
+      .replace(/\\textbf\{([^}]+)\}/g, '<b>$1</b>')
+      .replace(/\\emph\{([^}]+)\}/g, '<i>$1</i>')
+      .replace(/\\textit\{([^}]+)\}/g, '<i>$1</i>')
+      .replace(/\\href\{([^}]+)\}\{([^}]+)\}/g, '<a href="$1" target="_blank" class="hover:underline text-blue-800">$2</a>')
+      .replace(/\\&/g, '&')
+      .replace(/\\%/g, '%')
+      .replace(/\\(?![a-zA-Z])/g, '');
+  };
+
+  // Real-time parsed resume structure for the preview
   const [parsedResume, setParsedResume] = useState(parseLatex(DEFAULT_LATE_RESUME));
+  
+  // Extract sections for the File Outline
+  const sections = latexCode.match(/\\\\section\\{([^}]+)\\}/g)?.map(s => s.replace(/\\\\section\\{|\\}/g, "")) || [];
 
   // Update parsed resume when LaTeX changes
   useEffect(() => {
@@ -60,14 +73,6 @@ export default function ResumeBuilder({
     localStorage.setItem("socrates_resume_latex", code);
   };
 
-  const handleReset = () => {
-    if (window.confirm("Are you sure you want to reset your resume to the default template? This will discard your current edits.")) {
-      saveToCache(DEFAULT_LATE_RESUME);
-      setSuccessMessage("Resume reset to default template.");
-      setTimeout(() => setSuccessMessage(""), 3000);
-    }
-  };
-
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -87,7 +92,6 @@ export default function ResumeBuilder({
         throw new Error("Could not extract text from the PDF. The file may be image-scanned.");
       }
 
-      // Convert extracted text into LaTeX using OpenRouter
       const latex = await convertResumeToLatex(openRouterKey, selectedModel, extractedText);
       saveToCache(latex);
       
@@ -96,30 +100,17 @@ export default function ResumeBuilder({
       setTimeout(() => setSuccessMessage(""), 4000);
     } catch (err: any) {
       console.error(err);
-      setUploadError(err.message || "Failed to process the PDF resume. Standard template retained.");
+      setUploadError(err.message || "Failed to process the PDF resume.");
     } finally {
       setIsConverting(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
 
-  const handleDownloadTex = () => {
-    const blob = new Blob([latexCode], { type: "text/plain;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${parsedResume.name.replace(/\s+/g, "_")}_Resume.tex`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  };
-
   const handleDownloadPdf = () => {
     const printContent = document.getElementById("printable-resume-container")?.innerHTML;
     if (!printContent) return;
 
-    // Create an iframe to print dynamically
     const iframe = document.createElement("iframe");
     iframe.style.position = "fixed";
     iframe.style.right = "0";
@@ -134,81 +125,53 @@ export default function ResumeBuilder({
       doc.write(`
         <html>
           <head>
-            <title>${parsedResume.name || "Resume"}</title>
+            <title>\${parsedResume.name || "Resume"}</title>
             <style>
-              @page {
-                size: letter;
-                margin: 0.5in;
-              }
-              body {
-                font-family: 'Times New Roman', Times, serif;
-                color: #000;
-                background: #fff;
-                font-size: 10pt;
-                line-height: 1.3;
-                margin: 0;
-                padding: 0;
-              }
-              a {
-                color: #000;
-                text-decoration: underline;
-              }
+              @page { size: A4; margin: 0.5in; }
+              body { font-family: 'Times New Roman', Times, serif; color: #000; background: #fff; line-height: 1.3; margin: 0; padding: 0; }
+              a { color: #000; text-decoration: underline; }
+              /* Tailwind utility mappings for PDF export */
+              .flex { display: flex; }
+              .justify-between { justify-content: space-between; }
+              .justify-center { justify-content: center; }
+              .items-baseline { align-items: baseline; }
+              .items-center { align-items: center; }
+              .flex-wrap { flex-wrap: wrap; }
+              .gap-2 { gap: 8px; }
               .text-center { text-align: center; }
-              .name { font-size: 17pt; font-variant: small-caps; font-weight: bold; margin-bottom: 2px; }
-              .contact { font-size: 8.5pt; margin-bottom: 8px; }
-              .section-title {
-                font-size: 10.5pt;
-                font-variant: small-caps;
-                font-weight: bold;
-                border-bottom: 1px solid #000;
-                margin-top: 10px;
-                margin-bottom: 5px;
-                padding-bottom: 1px;
-              }
-              .subheading-row {
-                display: flex;
-                justify-content: space-between;
-                font-weight: bold;
-                font-size: 9.5pt;
-                margin-top: 3px;
-              }
-              .subheading-subrow {
-                display: flex;
-                justify-content: space-between;
-                font-style: italic;
-                font-size: 9pt;
-                margin-bottom: 3px;
-              }
-              .project-row {
-                display: flex;
-                justify-content: space-between;
-                font-size: 9.5pt;
-                margin-top: 3px;
-                margin-bottom: 1px;
-              }
-              ul {
-                margin: 0 0 5px 0;
-                padding-left: 18px;
-              }
-              li {
-                margin-bottom: 1px;
-                font-size: 9pt;
-              }
-              .skills-list {
-                font-size: 9pt;
-                margin-top: 3px;
-                margin-bottom: 3px;
-              }
+              .font-bold { font-weight: bold; }
+              .font-normal { font-weight: normal; }
+              .italic { font-style: italic; }
+              .uppercase { text-transform: uppercase; }
+              .tracking-wide { letter-spacing: 0.025em; }
+              .underline { text-decoration: underline; }
+              .border-b { border-bottom: 1px solid black; }
+              .border-black { border-color: black; }
+              .list-none { list-style-type: none; }
+              .list-disc { list-style-type: disc; }
+              .m-0 { margin: 0; }
+              .p-0 { padding: 0; }
+              .mb-1 { margin-bottom: 4px; }
+              .mb-1\\.5 { margin-bottom: 6px; }
+              .mb-2 { margin-bottom: 8px; }
+              .mb-3 { margin-bottom: 12px; }
+              .mb-4 { margin-bottom: 16px; }
+              .pb-\\[2px\\] { padding-bottom: 2px; }
+              .pl-\\[0\\.15in\\] { padding-left: 0.15in; }
+              .pl-5 { padding-left: 20px; }
+              .space-y-\\[2px\\] > * + * { margin-top: 2px; }
+              .space-y-\\[6px\\] > * + * { margin-top: 6px; }
+              .text-\\[32px\\] { font-size: 32px; }
+              .text-\\[14\\.5px\\] { font-size: 14.5px; }
+              .text-\\[17px\\] { font-size: 17px; }
+              .text-\\[15px\\] { font-size: 15px; }
             </style>
           </head>
-          <body>
-            ${printContent}
-          </body>
+          <body>${printContent}</body>
         </html>
       `);
       doc.close();
       
-      // Wait for iframe content to render before printing
       setTimeout(() => {
         iframe.contentWindow?.focus();
         iframe.contentWindow?.print();
@@ -217,663 +180,276 @@ export default function ResumeBuilder({
     }
   };
 
-  const handleAnalyzeAts = async () => {
-    if (!jobDescription.trim()) {
-      alert("Please enter a job description to analyze your resume.");
-      return;
-    }
-
-    setIsAnalyzing(true);
-    setAtsFeedback(null);
-
-    try {
-      const feedback = await analyzeResume(openRouterKey, selectedModel, latexCode, jobDescription);
-      setAtsFeedback(feedback);
-      onActivityPerformed();
-    } catch (err: any) {
-      console.error(err);
-      alert(err.message || "Failed to analyze resume. Please try again.");
-    } finally {
-      setIsAnalyzing(false);
-    }
-  };
-
-  const applySuggestion = (original: string, replacement: string) => {
-    // Find the original phrase in the LaTeX code and replace it
-    if (latexCode.includes(original)) {
-      const updatedCode = latexCode.replace(original, replacement);
-      saveToCache(updatedCode);
-      setSuccessMessage("Wording suggestion applied directly to LaTeX editor!");
-      setTimeout(() => setSuccessMessage(""), 3000);
-      
-      // Remove applied suggestion from local state list
-      if (atsFeedback) {
-        setAtsFeedback({
-          ...atsFeedback,
-          suggestions: atsFeedback.suggestions.filter(s => s.originalPhrase !== original)
-        });
-      }
-    } else {
-      alert("Unable to auto-apply because the phrase was modified in the LaTeX editor. You can copy the suggested phrase manually.");
-    }
-  };
-
-  // Helper inserts for LaTeX code
-  const insertSubheading = () => {
-    const snippet = `\n    \\resumeSubheading
-      {Company/Institution}{Start Date -- End Date}
-      {Job Title / Degree Title}{City, State}
-      \\resumeItemListStart
-        \\resumeItem{Describe your key contribution or accomplishment leading with a strong action verb.}
-        \\resumeItem{Quantify your results (e.g., optimized service processing speed by 18%).}
-      \\resumeItemListEnd\n`;
-    
-    // Insert at current cursor or just append before end{document}
-    const index = latexCode.lastIndexOf("\\end{document}");
-    if (index !== -1) {
-      const updated = latexCode.substring(0, index) + snippet + latexCode.substring(index);
-      saveToCache(updated);
-    }
-  };
-
-  const insertProject = () => {
-    const snippet = `\n      \\resumeProjectHeading
-          {\\textbf{Project Name} $|$ \\emph{Technologies Used}}{Date}
-          \\resumeItemListStart
-            \\resumeItem{Developed key systems and features using modern programming frameworks.}
-            \\resumeItem{Managed production environments and deployed configurations.}
-          \\resumeItemListEnd\n`;
-    const index = latexCode.lastIndexOf("\\end{document}");
-    if (index !== -1) {
-      const updated = latexCode.substring(0, index) + snippet + latexCode.substring(index);
-      saveToCache(updated);
-    }
-  };
-
   return (
-    <div className="flex flex-col h-full bg-brand-card/20 border border-brand-border/30 rounded-2xl overflow-hidden glass-panel">
+    <div className="flex flex-col h-full bg-[#1e1e1e] border border-zinc-800/30 rounded-2xl overflow-hidden font-sans text-zinc-300 relative">
       
-      {/* Top Banner Toolbar */}
-      <div className="px-6 py-4 border-b border-brand-border/20 flex flex-wrap gap-4 justify-between items-center bg-black/20">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400">
-            <Briefcase className="w-4 h-4" />
+      {/* Overleaf-Style Global Header */}
+      <div className="flex items-center justify-between px-4 py-2 bg-[#1e1e1e] border-b border-[#333] text-sm">
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-1.5 text-emerald-500 font-bold">
+            <LayoutGrid className="w-4 h-4" />
           </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h3 className="font-bold text-slate-100 text-sm">Resume Builder & ATS Optimizer</h3>
-              <div className="flex items-center gap-1 px-2 py-0.5 rounded bg-slate-900 border border-brand-border/20 text-[9px] text-slate-400 font-mono">
-                <span className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse" />
-                <span>{SUPPORTED_MODELS.find(m => m.id === selectedModel)?.name || "Offline Simulator"}</span>
-              </div>
-            </div>
-            <p className="text-slate-500 text-xs">Edit Jake's LaTeX Resume & scan keywords with AI</p>
+          <div className="flex items-center text-xs text-zinc-300 space-x-4">
+            <span className="hover:text-white cursor-pointer">File</span>
+            <span className="hover:text-white cursor-pointer">Edit</span>
+            <span className="hover:text-white cursor-pointer">Insert</span>
+            <span className="hover:text-white cursor-pointer">View</span>
+            <span className="hover:text-white cursor-pointer">Format</span>
+            <span className="hover:text-white cursor-pointer">Help</span>
           </div>
         </div>
-
-        {/* Toolbar Buttons */}
-        <div className="flex items-center gap-2 flex-wrap">
-          {/* Upload PDF resume */}
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            disabled={isConverting}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-brand-border/40 text-xs font-semibold hover:bg-white/5 transition-all text-slate-300 disabled:opacity-50 cursor-pointer"
-            title="Upload existing resume to fill template"
-          >
-            {isConverting ? (
-              <RefreshCw className="w-3.5 h-3.5 animate-spin text-violet-400" />
-            ) : (
-              <UploadCloud className="w-3.5 h-3.5" />
-            )}
-            {isConverting ? "Converting PDF..." : "Upload Resume PDF"}
+        <div className="flex items-center justify-center flex-1">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-semibold text-white">Jake's Resume Template</span>
+            <span className="text-xs text-zinc-500">(Anonymous)</span>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <History className="w-4 h-4 text-zinc-400 hover:text-white cursor-pointer" />
+          <MessageSquare className="w-4 h-4 text-zinc-400 hover:text-white cursor-pointer" />
+          <button className="flex items-center gap-1 bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded text-xs font-semibold">
+            <Share2 className="w-3.5 h-3.5" /> Share
           </button>
-          <input
-            type="file"
-            ref={fileInputRef}
-            onChange={handleFileUpload}
-            accept="application/pdf"
-            className="hidden"
-          />
-
-          {/* Reset to template */}
-          <button
-            onClick={handleReset}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-brand-border/40 text-xs font-semibold hover:bg-white/5 transition-all text-slate-400 cursor-pointer"
-            title="Reset template"
-          >
-            <RotateCcw className="w-3.5 h-3.5" />
-            Reset
-          </button>
-
-          {/* Download Tex */}
-          <button
-            onClick={handleDownloadTex}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-brand-border/40 text-xs font-semibold hover:bg-white/5 transition-all text-slate-400 cursor-pointer"
-            title="Download LaTeX source file"
-          >
-            <FileCode className="w-3.5 h-3.5 text-blue-400" />
-            .TEX
-          </button>
-
-          {/* Download PDF */}
-          <button
-            onClick={handleDownloadPdf}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-xs font-semibold text-white transition-all cursor-pointer shadow-md"
-            title="Export as PDF file"
-          >
-            <FileDown className="w-3.5 h-3.5" />
-            Export PDF
+          <button className="flex items-center gap-1 bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded text-xs font-semibold">
+            <Crown className="w-3.5 h-3.5" /> Upgrade
           </button>
         </div>
       </div>
 
-      {/* Upload Info banner / Error messaging */}
-      {uploadError && (
-        <div className="mx-6 mt-4 flex gap-3 bg-rose-950/20 border border-rose-500/30 p-3.5 rounded-xl text-xs text-rose-300 animate-fade-in">
-          <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
-          <span>{uploadError}</span>
-        </div>
-      )}
-      {successMessage && (
-        <div className="mx-6 mt-4 flex gap-3 bg-emerald-950/20 border border-emerald-500/30 p-3.5 rounded-xl text-xs text-emerald-300 animate-fade-in">
-          <CheckCircle className="w-4 h-4 shrink-0 mt-0.5" />
-          <span>{successMessage}</span>
-        </div>
-      )}
-
       {/* Main split viewport layout */}
-      <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 overflow-hidden h-[calc(100vh-12rem)]">
+      <div className="flex-1 flex overflow-hidden">
         
-        {/* Left Side: LaTeX Code Editor (5 cols) */}
-        <div className="lg:col-span-5 flex flex-col border-r border-brand-border/20 h-full overflow-hidden bg-slate-950/40">
-          <div className="px-4 py-2 border-b border-brand-border/10 flex justify-between items-center bg-black/10">
-            <span className="text-[11px] font-bold tracking-wider text-slate-500 uppercase flex items-center gap-1.5">
-              <Edit3 className="w-3.5 h-3.5 text-violet-400" /> LaTeX Editor
-            </span>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={insertSubheading}
-                className="text-[10px] bg-white/5 border border-brand-border/30 hover:border-violet-500/40 px-2 py-1 rounded text-slate-300 cursor-pointer"
-              >
-                + Job
-              </button>
-              <button
-                onClick={insertProject}
-                className="text-[10px] bg-white/5 border border-brand-border/30 hover:border-violet-500/40 px-2 py-1 rounded text-slate-300 cursor-pointer"
-              >
-                + Project
-              </button>
+        {/* Left Sidebar (File tree & outline) */}
+        <div className="w-56 flex flex-col bg-[#1e1e1e] border-r border-[#333]">
+          {/* File Tree */}
+          <div className="flex-1 flex flex-col min-h-0 border-b border-[#333]">
+            <div className="px-3 py-2 text-xs font-bold text-zinc-400 uppercase tracking-wider flex items-center justify-between">
+              <span className="flex items-center gap-1.5"><ChevronDown className="w-3 h-3" /> File tree</span>
+              <div className="flex gap-2">
+                <FileText className="w-3.5 h-3.5 hover:text-white cursor-pointer" />
+                <Folder className="w-3.5 h-3.5 hover:text-white cursor-pointer" />
+                <UploadCloud onClick={() => fileInputRef.current?.click()} className="w-3.5 h-3.5 hover:text-emerald-400 cursor-pointer" />
+              </div>
+            </div>
+            <div className="px-2 py-1 flex-1 overflow-y-auto">
+              <div className="flex items-center gap-2 px-2 py-1.5 rounded bg-emerald-500/10 text-emerald-400 text-sm cursor-pointer">
+                <File className="w-4 h-4" />
+                main.tex
+              </div>
+              <div className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-white/5 text-zinc-400 text-sm cursor-pointer">
+                <File className="w-4 h-4" />
+                resume.cls
+              </div>
             </div>
           </div>
+          
+          {/* File Outline */}
+          <div className="flex-1 flex flex-col min-h-0">
+            <div className="px-3 py-2 text-xs font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
+              <ChevronDown className="w-3 h-3" /> File outline
+            </div>
+            <div className="px-2 py-1 flex-1 overflow-y-auto space-y-0.5">
+              {sections.length > 0 ? (
+                sections.map((sec, idx) => (
+                  <div key={idx} className="flex items-center gap-2 px-4 py-1 text-xs text-zinc-400 hover:text-white hover:bg-white/5 rounded cursor-pointer truncate">
+                    {sec}
+                  </div>
+                ))
+              ) : (
+                <div className="px-4 py-4 text-xs text-zinc-500 text-center">
+                  We can't find any sections or subsections in this file.
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
 
-          {/* Large text editor input */}
-          <div className="flex-1 relative flex">
-            {/* Simple Line Numbers Mockup */}
-            <div className="w-9 bg-black/30 border-r border-brand-border/10 select-none py-4 text-right pr-2 font-mono text-[10px] text-slate-600 leading-6 overflow-hidden">
-              {Array.from({ length: Math.min(250, latexCode.split("\n").length) }).map((_, i) => (
-                <div key={i}>{i + 1}</div>
+        {/* Middle Pane: Code Editor */}
+        <div className="flex-1 flex flex-col bg-[#252526] border-r border-[#333] min-w-[300px]">
+          {/* Editor Tabs & Toolbar */}
+          <div className="flex flex-col border-b border-[#333]">
+            <div className="flex items-center bg-[#1e1e1e]">
+              <div className="px-4 py-2 bg-[#252526] border-t-2 border-emerald-500 text-zinc-200 text-sm flex items-center gap-2">
+                <File className="w-3.5 h-3.5 text-emerald-500" />
+                main.tex
+              </div>
+            </div>
+            <div className="flex items-center justify-between px-3 py-1.5 bg-[#252526] text-zinc-400 text-sm">
+              <div className="flex items-center gap-4">
+                <button 
+                  onClick={() => setActiveTab("code")}
+                  className={`flex items-center gap-1.5 px-2 py-1 rounded ${activeTab === "code" ? "bg-emerald-500/20 text-emerald-400 font-semibold" : "hover:bg-white/5"}`}
+                >
+                  Code Editor
+                </button>
+                <button 
+                  onClick={() => setActiveTab("visual")}
+                  className={`flex items-center gap-1.5 px-2 py-1 rounded ${activeTab === "visual" ? "bg-emerald-500/20 text-emerald-400 font-semibold" : "hover:bg-white/5"}`}
+                >
+                  Visual Editor
+                </button>
+              </div>
+              <div className="flex items-center gap-3">
+                <RotateCcw className="w-4 h-4 hover:text-white cursor-pointer" />
+                <span className="text-xs">Normal text <ChevronDown className="w-3 h-3 inline" /></span>
+                <span className="font-bold cursor-pointer hover:text-white">B</span>
+                <span className="italic cursor-pointer hover:text-white">I</span>
+                <span className="cursor-pointer hover:text-white">Ω</span>
+                <List className="w-4 h-4 hover:text-white cursor-pointer" />
+              </div>
+            </div>
+          </div>
+          
+          {/* Code Textarea */}
+          <div className="flex-1 relative overflow-hidden bg-[#1e1e1e]">
+            {/* Fake line numbers for aesthetics */}
+            <div className="absolute left-0 top-0 bottom-0 w-10 bg-[#1e1e1e] border-r border-[#333] flex flex-col items-end py-4 pr-2 text-[#858585] text-xs font-mono select-none overflow-hidden">
+              {Array.from({ length: 100 }).map((_, i) => (
+                <div key={i} className="h-[21px]">{i + 1}</div>
               ))}
             </div>
-            
             <textarea
               value={latexCode}
               onChange={(e) => saveToCache(e.target.value)}
-              spellCheck={false}
-              className="flex-1 bg-transparent p-4 outline-none resize-none font-mono text-[11px] text-slate-200 leading-6 overflow-y-auto"
-              placeholder="Paste or write your LaTeX code here..."
+              className="absolute inset-0 pl-12 pr-4 py-4 w-full h-full bg-transparent text-[#d4d4d4] font-mono text-sm leading-[21px] resize-none focus:outline-none"
+              spellCheck="false"
             />
           </div>
         </div>
 
-        {/* Right Side: Tabbed Visual Resume & ATS Analyzer (7 cols) */}
-        <div className="lg:col-span-7 flex flex-col h-full overflow-hidden">
+        {/* Right Pane: Live PDF Preview */}
+        <div className="flex-1 flex flex-col bg-[#323639] min-w-[300px]">
+          {/* Preview Toolbar */}
+          <div className="px-4 py-2 border-b border-[#202124] flex items-center justify-between bg-[#323639] text-zinc-300">
+            <div className="flex items-center gap-2">
+              <button className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-1.5 rounded text-sm font-bold shadow-md">
+                Recompile <ChevronDown className="w-4 h-4" />
+              </button>
+              <FileDown onClick={handleDownloadPdf} className="w-4 h-4 hover:text-white cursor-pointer ml-2" />
+            </div>
+            <div className="flex items-center gap-3 text-sm">
+              <span className="w-4 h-4 rounded-full bg-black/40 flex items-center justify-center text-[10px]">🌓</span>
+              <div className="flex items-center gap-2 bg-black/20 px-2 py-1 rounded">
+                <span>1 / 1</span>
+              </div>
+              <ZoomOut onClick={() => setZoomLevel(Math.max(40, zoomLevel - 10))} className="w-4 h-4 hover:text-white cursor-pointer" />
+              <ZoomIn onClick={() => setZoomLevel(Math.min(150, zoomLevel + 10))} className="w-4 h-4 hover:text-white cursor-pointer" />
+              <span className="text-xs">{zoomLevel}%</span>
+            </div>
+          </div>
           
-          {/* Navigation sub-tabs */}
-          <div className="px-4 py-2 border-b border-brand-border/20 flex gap-2 bg-black/15">
-            <button
-              onClick={() => setActiveSubTab("preview")}
-              className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                activeSubTab === "preview"
-                  ? "bg-violet-600/15 border border-violet-500/40 text-violet-300"
-                  : "text-slate-400 hover:text-slate-200"
-              }`}
+          {/* PDF Canvas Area */}
+          <div className="flex-1 overflow-auto p-8 flex justify-center items-start">
+            <div 
+              id="printable-resume-container"
+              className="shadow-2xl origin-top transition-transform"
+              style={{
+                width: "210mm",
+                minHeight: "297mm",
+                padding: "0.5in",
+                transform: `scale(${zoomLevel / 100})`,
+                transformOrigin: "top center",
+                color: "#000",
+                fontFamily: "'Times New Roman', Times, serif",
+                backgroundColor: "white",
+              }}
             >
-              📄 Live A4 PDF Preview
-            </button>
-            <button
-              onClick={() => setActiveSubTab("ats")}
-              className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                activeSubTab === "ats"
-                  ? "bg-violet-600/15 border border-violet-500/40 text-violet-300"
-                  : "text-slate-400 hover:text-slate-200"
-              }`}
-            >
-              ⚡ ATS Score & Suggestion Checker
-            </button>
-          </div>
-
-          {/* Sub-Tab Content Viewport */}
-          <div className="flex-1 overflow-y-auto p-6 bg-slate-900/10">
-            
-            {/* Sub-Tab 1: Visual Resume Preview */}
-            {activeSubTab === "preview" && (
-              <div className="flex flex-col items-center">
-                <div className="w-full max-w-[21cm] bg-white text-slate-900 border border-slate-300 shadow-2xl p-[1.5cm] min-h-[29.7cm] flex flex-col text-left transition-all leading-normal select-text">
-                  
-                  {/* Container that maps to physical PDF download layout */}
-                  <div id="printable-resume-container">
-                    
-                    {/* Centered Heading */}
-                    <div className="text-center">
-                      <div className="name font-bold tracking-tight text-slate-950 uppercase" style={{ fontFamily: "serif", fontSize: "20px" }}>
-                        {parsedResume.name}
-                      </div>
-                      <div className="contact text-slate-700 text-[11px] mt-1 space-x-1.5">
-                        {parsedResume.contact.map((info, idx) => (
-                          <React.Fragment key={idx}>
-                            <span>{info}</span>
-                            {idx < parsedResume.contact.length - 1 && <span className="text-slate-400 select-none">|</span>}
-                          </React.Fragment>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Resume Sections */}
-                    {parsedResume.sections.map((sec, sidx) => (
-                      <div key={sidx} className="mt-4">
-                        <div className="section-title text-[12px] font-bold border-b border-slate-900 text-slate-950 uppercase pb-[1px]" style={{ fontFamily: "serif" }}>
-                          {sec.title}
-                        </div>
-                        
-                        <div className="mt-1 space-y-3">
-                          {sec.items.map((item: any, iidx: number) => {
-                            if (item.type === "subheading") {
-                              return (
-                                <div key={iidx} className="text-[11.5px]">
-                                  <div className="subheading-row flex justify-between font-bold text-slate-900">
-                                    <span>{item.title1}</span>
-                                    <span>{item.title2}</span>
-                                  </div>
-                                  <div className="subheading-subrow flex justify-between italic text-slate-600 text-[11px]">
-                                    <span>{item.title3}</span>
-                                    <span>{item.title4}</span>
-                                  </div>
-                                  {item.bullets && item.bullets.length > 0 && (
-                                    <ul className="list-disc pl-5 mt-1 space-y-1">
-                                      {item.bullets.map((bullet: string, bidx: number) => (
-                                        <li key={bidx} className="text-slate-800 text-[11.5px] leading-relaxed">{bullet}</li>
-                                      ))}
-                                    </ul>
-                                  )}
-                                </div>
-                              );
-                            }
-
-                            if (item.type === "project") {
-                              return (
-                                <div key={iidx} className="text-[11.5px]">
-                                  <div className="project-row flex justify-between font-bold text-slate-900">
-                                    <span>{item.title1}</span>
-                                    <span>{item.title2}</span>
-                                  </div>
-                                  {item.bullets && item.bullets.length > 0 && (
-                                    <ul className="list-disc pl-5 mt-1 space-y-1">
-                                      {item.bullets.map((bullet: string, bidx: number) => (
-                                        <li key={bidx} className="text-slate-800 text-[11.5px] leading-relaxed">{bullet}</li>
-                                      ))}
-                                    </ul>
-                                  )}
-                                </div>
-                              );
-                            }
-
-                            if (item.type === "skills") {
-                              return (
-                                <div key={iidx} className="text-[11.5px] text-slate-800">
-                                  <span className="font-bold text-slate-900">{item.title1}</span>: {item.title2}
-                                </div>
-                              );
-                            }
-
-                            return (
-                              <div key={iidx} className="text-[11.5px] text-slate-800 leading-relaxed">
-                                {item.rawText}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    ))}
-
-                  </div>
-
+              {/* Render parsed resume identically to the template */}
+              <div className="text-center mb-4">
+                <h1 className="text-[32px] font-bold uppercase tracking-wide mb-1" style={{ fontVariant: 'small-caps' }}>
+                  {parsedResume.name || "Jake Ryan"}
+                </h1>
+                <div className="text-[14.5px] flex items-center justify-center gap-2 flex-wrap text-black">
+                  {parsedResume.phone && <span>{parsedResume.phone}</span>}
+                  {parsedResume.phone && <span>|</span>}
+                  {parsedResume.email && <a href={`mailto:${parsedResume.email}`} className="underline">{parsedResume.email}</a>}
+                  {(parsedResume.email && parsedResume.linkedin) && <span>|</span>}
+                  {parsedResume.linkedin && <a href={`https://${parsedResume.linkedin}`} className="underline">{parsedResume.linkedin}</a>}
+                  {(parsedResume.linkedin && parsedResume.github) && <span>|</span>}
+                  {parsedResume.github && <a href={`https://${parsedResume.github}`} className="underline">{parsedResume.github}</a>}
                 </div>
-                <span className="text-[10px] text-slate-500 mt-3 text-center">
-                  💡 High-fidelity vector preview dynamically rendered from LaTeX input. Click <strong>Export PDF</strong> to print/save.
-                </span>
               </div>
-            )}
 
-            {/* Sub-Tab 2: ATS Scanner & Optimizer */}
-            {activeSubTab === "ats" && (
-              <div className="max-w-2xl mx-auto space-y-6 text-left">
-                
-                {/* Configuration Input */}
-                <div className="bg-brand-card/30 border border-brand-border/40 rounded-2xl p-5 space-y-4">
-                  <h4 className="text-sm font-bold text-slate-200 flex items-center gap-2">
-                    <Search className="w-4 h-4 text-violet-400" /> Target Job Alignment
-                  </h4>
-                  <p className="text-xs text-slate-400 leading-relaxed">
-                    Paste the target job description details below. The AI will scan your LaTeX qualifications, generate matching scoring metrics, list missing keywords, and suggest direct text corrections.
-                  </p>
-                  <div>
-                    <textarea
-                      value={jobDescription}
-                      onChange={(e) => setJobDescription(e.target.value)}
-                      placeholder="Paste the full job details / qualifications requirements here..."
-                      className="w-full h-32 bg-white/5 border border-brand-border/40 rounded-xl p-4 text-xs text-slate-200 placeholder-slate-600 outline-none focus:border-violet-500/50 resize-none"
-                    />
-                  </div>
-                  <button
-                    onClick={handleAnalyzeAts}
-                    disabled={isAnalyzing || !jobDescription.trim()}
-                    className="w-full py-2.5 rounded-xl font-bold bg-violet-600 hover:bg-violet-700 disabled:opacity-30 disabled:cursor-not-allowed text-xs text-white transition-all flex items-center justify-center gap-2 cursor-pointer shadow-lg"
+              {parsedResume.sections.map((section, idx) => (
+                <div key={idx} className="mb-3">
+                  <h2 
+                    className="text-[17px] font-bold uppercase border-b border-black pb-[2px] mb-2"
+                    style={{ fontVariant: 'small-caps' }}
                   >
-                    {isAnalyzing ? (
-                      <RefreshCw className="w-3.5 h-3.5 animate-spin text-white" />
-                    ) : (
-                      <Play className="w-3.5 h-3.5" />
-                    )}
-                    {isAnalyzing ? "Scanning Resume..." : "Run ATS Scan"}
-                  </button>
-                </div>
-
-                {/* Score and recommendations */}
-                {atsFeedback && (
-                  <div className="space-y-6 animate-fade-in">
-                    
-                    {/* Score Indicator */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      
-                      {/* Score gauge card */}
-                      <div className="bg-brand-card/30 border border-brand-border/40 rounded-2xl p-5 flex flex-col items-center justify-center">
-                        <span className="text-[10px] font-bold text-slate-500 tracking-wider uppercase mb-2">ATS Score</span>
-                        <div className="relative w-24 h-24 flex items-center justify-center">
-                          <svg className="w-full h-full transform -rotate-90">
-                            <circle cx="48" cy="48" r="40" stroke="rgba(255, 255, 255, 0.05)" strokeWidth="8" fill="transparent" />
-                            <circle 
-                              cx="48" 
-                              cy="48" 
-                              r="40" 
-                              stroke={atsFeedback.score >= 80 ? "#10b981" : atsFeedback.score >= 60 ? "#f59e0b" : "#ef4444"} 
-                              strokeWidth="8" 
-                              fill="transparent" 
-                              strokeDasharray="251.2"
-                              strokeDashoffset={251.2 - (251.2 * atsFeedback.score) / 100}
-                              className="transition-all duration-1000 ease-out"
-                            />
-                          </svg>
-                          <span className="absolute text-xl font-black text-slate-100">{atsFeedback.score}%</span>
-                        </div>
-                      </div>
-
-                      {/* Match summary stats */}
-                      <div className="md:col-span-2 bg-brand-card/30 border border-brand-border/40 rounded-2xl p-5 flex flex-col justify-center">
-                        <h5 className="text-xs font-bold text-slate-200 uppercase tracking-wider mb-2">Key Strengths Matched</h5>
-                        <ul className="space-y-1.5">
-                          {atsFeedback.strengths.map((str, idx) => (
-                            <li key={idx} className="text-xs text-slate-300 flex items-start gap-1.5">
-                              <CheckCircle className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
-                              <span>{str}</span>
-                            </li>
+                    {section.title}
+                  </h2>
+                  
+                  {section.title.toLowerCase().includes("skills") ? (
+                    <ul className="list-none m-0 p-0 pl-[0.15in]">
+                      {section.items.map((item, i) => (
+                        <li key={i} className="text-[14.5px] mb-[2px]">
+                          {item.bullets.map((bullet, j) => (
+                            <span key={j} dangerouslySetInnerHTML={{ __html: formatLatexText(bullet) }} />
                           ))}
-                        </ul>
-                      </div>
-
-                    </div>
-
-                    {/* Missing Keywords list */}
-                    <div className="bg-brand-card/30 border border-brand-border/40 rounded-2xl p-5 space-y-3">
-                      <h5 className="text-xs font-bold text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
-                        <AlertTriangle className="w-3.5 h-3.5 text-amber-500" /> Missing / Weak Keywords
-                      </h5>
-                      <p className="text-[11px] text-slate-400 leading-relaxed">
-                        Incorporate these terms into your resume's technical skills list or descriptions to match recruiter search filters.
-                      </p>
-                      <div className="flex flex-wrap gap-2">
-                        {atsFeedback.missingKeywords.map((kw, idx) => (
-                          <span 
-                            key={idx} 
-                            onClick={() => {
-                              // Fast append keyword to Technical Skills section
-                              const skillIndex = latexCode.indexOf("\\section{Technical Skills}");
-                              if (skillIndex !== -1) {
-                                // Add keyword to Languages or Technologies
-                                const updated = latexCode.replace(
-                                  "\\section{Technical Skills}",
-                                  `\\section{Technical Skills}\n  % Added ATS recommendation: ${kw}`
-                                );
-                                saveToCache(updated);
-                                setSuccessMessage(`Suggested keyword "${kw}" added as draft comment in Technical Skills!`);
-                                setTimeout(() => setSuccessMessage(""), 3000);
-                              } else {
-                                alert(`Copy and insert this keyword manually: ${kw}`);
-                              }
-                            }}
-                            className="px-2.5 py-1 rounded bg-amber-500/10 border border-amber-500/30 hover:bg-amber-500/20 text-amber-400 text-xs font-semibold cursor-pointer transition-colors"
-                          >
-                            + {kw}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Phrasing Suggestions */}
-                    <div className="bg-brand-card/30 border border-brand-border/40 rounded-2xl p-5 space-y-4">
-                      <h5 className="text-xs font-bold text-slate-200 uppercase tracking-wider">
-                        Specific Wording Enhancements
-                      </h5>
-                      <p className="text-[11px] text-slate-400 leading-relaxed">
-                        Replace generic descriptions with result-driven phrases. You can click <strong>"Apply Suggestion"</strong> to automatically inject them directly into your LaTeX code editor!
-                      </p>
-
-                      <div className="space-y-4">
-                        {atsFeedback.suggestions.map((sug, idx) => (
-                          <div key={idx} className="p-4 bg-black/30 border border-brand-border/20 rounded-xl space-y-3">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-                              <div>
-                                <span className="text-[10px] text-slate-500 font-bold uppercase block mb-1">Current Phrase:</span>
-                                <p className="text-slate-400 bg-white/5 p-2.5 rounded border border-brand-border/10 leading-relaxed">{sug.originalPhrase}</p>
-                              </div>
-                              <div>
-                                <span className="text-[10px] text-indigo-400 font-bold uppercase block mb-1">Suggested Upgrade:</span>
-                                <p className="text-slate-100 bg-indigo-950/20 p-2.5 rounded border border-indigo-500/30 leading-relaxed font-semibold">{sug.suggestedPhrase}</p>
-                              </div>
-                            </div>
-                            
-                            <div className="text-[11px] text-slate-400 leading-relaxed border-t border-brand-border/10 pt-2.5 flex justify-between items-center">
-                              <span>{sug.explanation}</span>
-                              <button
-                                onClick={() => applySuggestion(sug.originalPhrase, sug.suggestedPhrase)}
-                                className="flex items-center gap-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-3 py-1.5 rounded text-[10px] cursor-pointer transition-colors shrink-0"
-                              >
-                                Apply Suggestion
-                              </button>
-                            </div>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <div className="space-y-[6px]">
+                      {section.items.map((item, i) => (
+                        <div key={i} className="pl-[0.15in]">
+                          <div className="flex justify-between items-baseline text-[15px] font-bold">
+                            <span dangerouslySetInnerHTML={{ __html: formatLatexText(item.title) }} />
+                            <span className="font-normal" dangerouslySetInnerHTML={{ __html: formatLatexText(item.sub2 || item.date) }} />
                           </div>
-                        ))}
-                      </div>
+                          {(item.sub1 || (item.date && item.sub2)) && (
+                            <div className="flex justify-between items-baseline text-[14.5px] italic mb-1.5">
+                              <span dangerouslySetInnerHTML={{ __html: formatLatexText(item.sub1) }} />
+                              <span dangerouslySetInnerHTML={{ __html: formatLatexText(item.sub2 ? item.date : '') }} />
+                            </div>
+                          )}
+                          {item.bullets.length > 0 && (
+                            <ul className="list-disc pl-5 m-0 text-[14.5px] space-y-[2px]">
+                              {item.bullets.map((bullet, j) => (
+                                <li key={j} dangerouslySetInnerHTML={{ __html: formatLatexText(bullet) }} />
+                              ))}
+                            </ul>
+                          )}
+                        </div>
+                      ))}
                     </div>
-
-                  </div>
-                )}
-
-              </div>
-            )}
-
+                  )}
+                </div>
+              ))}
+            </div>
           </div>
-
         </div>
-
       </div>
-
+      
+      {/* Hidden file input for uploading */}
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleFileUpload}
+        accept="application/pdf"
+        className="hidden"
+      />
+      
+      {/* Absolute positioning for messages */}
+      {(uploadError || successMessage || isConverting) && (
+        <div className="absolute top-16 right-6 z-50 animate-fade-in flex flex-col gap-2">
+          {isConverting && (
+            <div className="flex gap-2 bg-indigo-900/90 border border-indigo-500 p-3 rounded-lg text-xs text-indigo-200 shadow-xl items-center">
+              <RefreshCw className="w-4 h-4 animate-spin" /> Extracting & formatting PDF...
+            </div>
+          )}
+          {uploadError && (
+            <div className="flex gap-2 bg-rose-900/90 border border-rose-500 p-3 rounded-lg text-xs text-rose-200 shadow-xl items-center">
+              <AlertTriangle className="w-4 h-4" /> {uploadError}
+            </div>
+          )}
+          {successMessage && (
+            <div className="flex gap-2 bg-emerald-900/90 border border-emerald-500 p-3 rounded-lg text-xs text-emerald-200 shadow-xl items-center">
+              <Check className="w-4 h-4" /> {successMessage}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
-}
-
-// Custom parser to map LaTeX to HTML
-function parseLatex(latex: string) {
-  const cleanStr = (str: string) => {
-    if (!str) return "";
-    return str
-      .replace(/\\href\{[^\}]*\}\{([^\}]*)\}/g, '$1')
-      .replace(/\\url\{([^\}]*)\}/g, '$1')
-      .replace(/\\underline\{([^\}]*)\}/g, '$1')
-      .replace(/\\textbf\{([^\}]*)\}/g, '$1')
-      .replace(/\\emph\{([^\}]*)\}/g, '$1')
-      .replace(/\\textit\{([^\}]*)\}/g, '$1')
-      .replace(/\\scshape/g, '')
-      .replace(/\\Huge/g, '')
-      .replace(/\\large/g, '')
-      .replace(/\\small/g, '')
-      .replace(/\\fa[A-Za-z0-9]+/g, '')
-      .replace(/\\raisebox\{[^\}]*\}\{\s*\\?[A-Za-z0-9]+\s*\}?/g, '')
-      .replace(/\\raisebox\{[^\}]*\}/g, '')
-      .replace(/~/g, ' ')
-      .replace(/--/g, '–')
-      .replace(/\\&/g, '&')
-      .replace(/\\_/g, '_')
-      .replace(/\\\$/g, '$')
-      .replace(/\\bar\b/g, '|')
-      .replace(/\\/g, '')
-      .replace(/\{|\}/g, '')
-      .trim();
-  };
-
-  // Find Name
-  let name = "First Last";
-  const nameMatch = latex.match(/\\Huge\s+\\scshape\s+([^\\\}]+)/) || 
-                    latex.match(/\\scshape\s+\\Huge\s+([^\\\}]+)/) ||
-                    latex.match(/\{\\Huge\s+\\scshape\s+([^\}]+)\}/);
-  if (nameMatch) {
-    name = nameMatch[1].trim();
-  }
-
-  // Find Contacts
-  const contact: string[] = [];
-  const centerMatch = latex.match(/\\begin\{center\}([\s\S]*?)\\end\{center\}/);
-  if (centerMatch) {
-    const lines = centerMatch[1].split('\n');
-    for (const line of lines) {
-      const parts = line.split(/[~|\\\/]/);
-      for (const p of parts) {
-        const clean = cleanStr(p).trim();
-        if (clean && clean.length > 3 && !clean.includes("begin{center}") && !clean.includes("end{center}")) {
-          contact.push(clean);
-        }
-      }
-    }
-  }
-
-  // Find Sections
-  const sections: any[] = [];
-  const sectionParts = latex.split('\\section{');
-  
-  for (let i = 1; i < sectionParts.length; i++) {
-    const part = sectionParts[i];
-    const braceIndex = part.indexOf('}');
-    if (braceIndex === -1) continue;
-    
-    const sectionTitle = part.substring(0, braceIndex).trim();
-    const sectionBody = part.substring(braceIndex + 1);
-    
-    const items: any[] = [];
-    
-    const collapsedBody = sectionBody.replace(/\s+/g, ' ');
-    const subheadings = [...collapsedBody.matchAll(/\\resumeSubheading\s*\{([^\}]+)\}\s*\{([^\}]+)\}\s*\{([^\}]+)\}\s*\{([^\}]+)\}/g)];
-    const projects = [...collapsedBody.matchAll(/\\resumeProjectHeading\s*\{([^\}]+)\}\s*\{([^\}]+)\}/g)];
-    
-    if (subheadings.length > 0) {
-      const subheadingParts = sectionBody.split('\\resumeSubheading');
-      for (let j = 1; j < subheadingParts.length; j++) {
-        const subPart = subheadingParts[j];
-        const collapsedSub = ('\\resumeSubheading' + subPart).replace(/\s+/g, ' ');
-        const match = collapsedSub.match(/\\resumeSubheading\s*\{([^\}]+)\}\s*\{([^\}]+)\}\s*\{([^\}]+)\}\s*\{([^\}]+)\}/);
-        
-        if (match) {
-          const bullets: string[] = [];
-          const bulletMatches = [...subPart.matchAll(/\\resumeItem\s*\{([^\}]+)\}/g)];
-          for (const bm of bulletMatches) {
-            bullets.push(cleanStr(bm[1]));
-          }
-          
-          items.push({
-            type: 'subheading',
-            title1: cleanStr(match[1]),
-            title2: cleanStr(match[2]),
-            title3: cleanStr(match[3]),
-            title4: cleanStr(match[4]),
-            bullets
-          });
-        }
-      }
-    } else if (projects.length > 0) {
-      const projectParts = sectionBody.split('\\resumeProjectHeading');
-      for (let j = 1; j < projectParts.length; j++) {
-        const projPart = projectParts[j];
-        const collapsedProj = ('\\resumeProjectHeading' + projPart).replace(/\s+/g, ' ');
-        const match = collapsedProj.match(/\\resumeProjectHeading\s*\{([^\}]+)\}\s*\{([^\}]+)\}/);
-        
-        if (match) {
-          const bullets: string[] = [];
-          const bulletMatches = [...projPart.matchAll(/\\resumeItem\s*\{([^\}]+)\}/g)];
-          for (const bm of bulletMatches) {
-            bullets.push(cleanStr(bm[1]));
-          }
-          
-          items.push({
-            type: 'project',
-            title1: cleanStr(match[1]),
-            title2: cleanStr(match[2]),
-            bullets
-          });
-        }
-      }
-    } else {
-      const lines = sectionBody.split('\n');
-      for (const line of lines) {
-        const trimmed = line.trim();
-        if (!trimmed || trimmed.startsWith('%') || trimmed.startsWith('\\begin') || trimmed.startsWith('\\end') || trimmed.startsWith('}')) continue;
-        
-        if (trimmed.includes('\\textbf{') && trimmed.includes('}{')) {
-          const matches = trimmed.match(/\\textbf\{([^\}]+)\}\s*\{:?\s*([^\}]+)\}/);
-          if (matches) {
-            items.push({
-              type: 'skills',
-              title1: cleanStr(matches[1]),
-              title2: cleanStr(matches[2])
-            });
-          }
-        } else if (trimmed.startsWith('\\item') || trimmed.startsWith('\\resumeItem')) {
-          const content = trimmed.replace(/^\\item\s*/, '').replace(/^\\resumeItem\{([^\}]+)\}/, '$1');
-          items.push({
-            type: 'text',
-            rawText: cleanStr(content)
-          });
-        } else if (trimmed.length > 5 && !trimmed.startsWith('\\')) {
-          items.push({
-            type: 'text',
-            rawText: cleanStr(trimmed)
-          });
-        }
-      }
-    }
-    
-    sections.push({
-      title: sectionTitle,
-      items
-    });
-  }
-
-  return { name, contact, sections };
 }

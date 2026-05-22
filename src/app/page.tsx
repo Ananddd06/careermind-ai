@@ -4,8 +4,10 @@ import React, { useState, useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import LandingPage from "@/components/LandingPage";
 import Dashboard from "@/components/Dashboard";
+import { useUser } from "@clerk/nextjs";
 
 export default function Home() {
+  const { isSignedIn, isLoaded } = useUser();
   const [view, setView] = useState<"landing" | "dashboard">("landing");
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [initialUploadTriggered, setInitialUploadTriggered] = useState(false);
@@ -22,6 +24,17 @@ export default function Home() {
       document.body.classList.remove("light-mode");
     }
   }, []);
+
+  // Sync auth state with view
+  useEffect(() => {
+    if (isLoaded) {
+      if (isSignedIn) {
+        setView("dashboard");
+      } else {
+        setView("landing");
+      }
+    }
+  }, [isLoaded, isSignedIn]);
 
   const toggleTheme = () => {
     setIsDarkMode(prev => {
@@ -48,7 +61,7 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen w-full flex flex-col">
+    <div className="flex-1 w-full overflow-hidden flex flex-col bg-zinc-950">
       <AnimatePresence mode="wait">
         {view === "landing" ? (
           <motion.div
@@ -57,7 +70,7 @@ export default function Home() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.3 }}
-            className="flex-1"
+            className="h-full w-full overflow-y-auto"
           >
             <LandingPage
               onStartDemo={handleStartDemo}
@@ -73,7 +86,7 @@ export default function Home() {
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.98 }}
             transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-            className="flex-1"
+            className="h-full w-full flex flex-col overflow-hidden"
           >
             <Dashboard
               onBackToLanding={() => setView("landing")}

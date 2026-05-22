@@ -531,10 +531,6 @@ export const DEFAULT_LATE_RESUME = `%-------------------------
 \\usepackage{fancyhdr}
 \\usepackage[english]{babel}
 \\usepackage{tabularx}
-\\usepackage{fontawesome5}
-\\usepackage{multicol}
-\\setlength{\\multicolsep}{-3.0pt}
-\\setlength{\\columnsep}{-1pt}
 \\input{glyphtounicode}
 
 
@@ -557,11 +553,11 @@ export const DEFAULT_LATE_RESUME = `%-------------------------
 \\renewcommand{\\footrulewidth}{0pt}
 
 % Adjust margins
-\\addtolength{\\oddsidemargin}{-0.6in}
+\\addtolength{\\oddsidemargin}{-0.5in}
 \\addtolength{\\evensidemargin}{-0.5in}
-\\addtolength{\\textwidth}{1.19in}
-\\addtolength{\\topmargin}{-.7in}
-\\addtolength{\\textheight}{1.4in}
+\\addtolength{\\textwidth}{1in}
+\\addtolength{\\topmargin}{-.5in}
+\\addtolength{\\textheight}{1.0in}
 
 \\urlstyle{same}
 
@@ -571,7 +567,7 @@ export const DEFAULT_LATE_RESUME = `%-------------------------
 
 % Sections formatting
 \\titleformat{\\section}{
-  \\vspace{-4pt}\\scshape\\raggedright\\large\\bfseries
+  \\vspace{-4pt}\\scshape\\raggedright\\large
 }{}{0em}{}[\\color{black}\\titlerule \\vspace{-5pt}]
 
 % Ensure that generate pdf is machine readable/ATS parsable
@@ -585,16 +581,10 @@ export const DEFAULT_LATE_RESUME = `%-------------------------
   }
 }
 
-\\newcommand{\\classesList}[4]{
-    \\item\\small{
-        {#1 #2 #3 #4 \\vspace{-2pt}}
-  }
-}
-
 \\newcommand{\\resumeSubheading}[4]{
   \\vspace{-2pt}\\item
-    \\begin{tabular*}{1.0\\textwidth}[t]{l@{\\extracolsep{\\fill}}r}
-      \\textbf{#1} & \\textbf{\\small #2} \\\\
+    \\begin{tabular*}{0.97\\textwidth}[t]{l@{\\extracolsep{\\fill}}r}
+      \\textbf{#1} & #2 \\\\
       \\textit{\\small#3} & \\textit{\\small #4} \\\\
     \\end{tabular*}\\vspace{-7pt}
 }
@@ -608,17 +598,16 @@ export const DEFAULT_LATE_RESUME = `%-------------------------
 
 \\newcommand{\\resumeProjectHeading}[2]{
     \\item
-    \\begin{tabular*}{1.001\\textwidth}{l@{\\extracolsep{\\fill}}r}
-      \\small#1 & \\textbf{\\small #2}\\\\
+    \\begin{tabular*}{0.97\\textwidth}{l@{\\extracolsep{\\fill}}r}
+      \\small#1 & #2 \\\\
     \\end{tabular*}\\vspace{-7pt}
 }
 
 \\newcommand{\\resumeSubItem}[1]{\\resumeItem{#1}\\vspace{-4pt}}
 
-\\renewcommand\\labelitemi{$\\vcenter{\\hbox{\\tiny$\\bullet$}}$}
 \\renewcommand\\labelitemii{$\\vcenter{\\hbox{\\tiny$\\bullet$}}$}
 
-\\newcommand{\\resumeSubHeadingListStart}{\\begin{itemize}[leftmargin=0.0in, label={}]}
+\\newcommand{\\resumeSubHeadingListStart}{\\begin{itemize}[leftmargin=0.15in, label={}]}
 \\newcommand{\\resumeSubHeadingListEnd}{\\end{itemize}}
 \\newcommand{\\resumeItemListStart}{\\begin{itemize}}
 \\newcommand{\\resumeItemListEnd}{\\end{itemize}\\vspace{-5pt}}
@@ -630,13 +619,16 @@ export const DEFAULT_LATE_RESUME = `%-------------------------
 \\begin{document}
 
 %----------HEADING----------
+% \\begin{tabular*}{\\textwidth}{l@{\\extracolsep{\\fill}}r}
+%   \\textbf{\\href{http://sourabhbajaj.com/}{\\Large Sourabh Bajaj}} & Email : \\href{mailto:sourabh@sourabhbajaj.com}{sourabh@sourabhbajaj.com}\\\\
+%   \\href{http://sourabhbajaj.com/}{http://www.sourabhbajaj.com} & Mobile : +1-123-456-7890 \\\\
+% \\end{tabular*}
+
 \\begin{center}
-    {\\Huge \\scshape First Last} \\\\ \\vspace{1pt}
-    123 Street Name, Town, State 12345 \\\\ \\vspace{1pt}
-    \\small \\raisebox{-0.1\\height}\\faPhone\\ 123-456-7890 ~ \\href{mailto:x@gmail.com}{\\raisebox{-0.2\\height}\\faEnvelope\\  \\underline{email@gmail.com}} ~ 
-    \\href{https://linkedin.com/in//}{\\raisebox{-0.2\\height}\\faLinkedin\\ \\underline{linkedin.com/in/username}}  ~
-    \\href{https://github.com/}{\\raisebox{-0.2\\height}\\faGithub\\ \\underline{github.com/username}}
-    \\vspace{-8pt}
+    \\textbf{\\Huge \\scshape Jake Ryan} \\\\ \\vspace{1pt}
+    \\small 123-456-7890 $|$ \\href{mailto:x@x.com}{\\underline{jake@su.edu}} $|$ 
+    \\href{https://linkedin.com/in/...}{\\underline{linkedin.com/in/jake}} $|$
+    \\href{https://github.com/...}{\\underline{github.com/jake}}
 \\end{center}
 
 
@@ -644,25 +636,12 @@ export const DEFAULT_LATE_RESUME = `%-------------------------
 \\section{Education}
   \\resumeSubHeadingListStart
     \\resumeSubheading
-      {State University}{Sep. 2017 -- May 2021}
-      {Bachelor of Science in Computer Science}{City, State}
+      {Southwestern University}{Georgetown, TX}
+      {Bachelor of Arts in Computer Science, Minor in Business}{Aug. 2018 -- May 2021}
+    \\resumeSubheading
+      {Blinn College}{Bryan, TX}
+      {Associate's in Liberal Arts}{Aug. 2014 -- May 2018}
   \\resumeSubHeadingListEnd
-
-%------RELEVANT COURSEWORK-------
-\\section{Relevant Coursework}
-        \\begin{multicols}{4}
-            \\begin{itemize}[itemsep=-5pt, parsep=3pt]
-                \\item\\small Data Structures
-                \\item Software Methodology
-                \\item Algorithms Analysis
-                \\item Database Management
-                \\item Artificial Intelligence
-                \\item Internet Technology
-                \\item Systems Programming
-                \\item Computer Architecture
-            \end{itemize}
-        \\end{multicols}
-        \\vspace*{2.0\\multicolsep}
 
 
 %-----------EXPERIENCE-----------
@@ -670,85 +649,85 @@ export const DEFAULT_LATE_RESUME = `%-------------------------
   \\resumeSubHeadingListStart
 
     \\resumeSubheading
-      {Electronics Company}{May 2020 -- August 2020}
-      {Software Engineer Intern}{City, State}
+      {Undergraduate Research Assistant}{June 2020 -- Present}
+      {Texas A\\&M University}{College Station, TX}
       \\resumeItemListStart
-        \\resumeItem{Developed a service to automatically perform a set of unit tests daily on a product in development in order to decrease time needed for team members to identify and fix bugs/issues.}
-        \\resumeItem{Incorporated scripts using Python and PowerShell to aggregate XML test results into an organized format and to load the latest build code onto the hardware, so that daily testing can be performed.}
-        \\resumeItem{Utilized Jenkins to provide a continuous integration service in order to automate the entire process of loading the latest build code and test files, running the tests, and generating a report of the results once per day.}
-        \\resumeItem{Explored ways to visualize and send a daily report of test results to team members  using HTML, Javascript, and CSS.}
+        \\resumeItem{Developed a REST API using FastAPI and PostgreSQL to store data from learning management systems}
+        \\resumeItem{Developed a full-stack web application using Flask, React, PostgreSQL and Docker to analyze GitHub data}
+        \\resumeItem{Explored ways to visualize GitHub collaboration in a classroom setting}
       \\resumeItemListEnd
+      
+% -----------Multiple Positions Heading-----------
+%    \\resumeSubSubheading
+%     {Software Engineer I}{Oct 2014 - Sep 2016}
+%     \\resumeItemListStart
+%        \\resumeItem{Apache Beam}
+%          {Apache Beam is a unified model for defining both batch and streaming data-parallel processing pipelines}
+%     \\resumeItemListEnd
+%    \\resumeSubHeadingListEnd
+%-------------------------------------------
 
     \\resumeSubheading
-      {Startup, Inc}{May 2019 -- August 2019}
-      {Front End Developer Intern}{City, State}
+      {Information Technology Support Specialist}{Sep. 2018 -- Present}
+      {Southwestern University}{Georgetown, TX}
       \\resumeItemListStart
-        \\resumeItem{Assisted in development of the front end of a mobile application for iOS/Android using Dart and the Flutter framework.}
-        \\resumeItem{Worked with Google Firebase to manage user inputted data across multiple platforms including web and mobile apps.}
-        \\resumeItem{Collaborated with team members using version control systems such as Git to organize modifications and assign tasks.}
-        \\resumeItem{Utilized Android Studio as a development environment in order to visualize the application in both iOS and Android.}
+        \\resumeItem{Communicate with managers to set up campus computers used on campus}
+        \\resumeItem{Assess and troubleshoot computer problems brought by students, faculty and staff}
+        \\resumeItem{Maintain upkeep of computers, classroom equipment, and 200 printers across campus}
     \\resumeItemListEnd
-    
+
+    \\resumeSubheading
+      {Artificial Intelligence Research Assistant}{May 2019 -- July 2019}
+      {Southwestern University}{Georgetown, TX}
+      \\resumeItemListStart
+        \\resumeItem{Explored methods to generate video game dungeons based off of \\emph{The Legend of Zelda}}
+        \\resumeItem{Developed a game in Java to test the generated dungeons}
+        \\resumeItem{Contributed 50K+ lines of code to an established codebase via Git}
+        \\resumeItem{Conducted  a human subject study to determine which video game dungeon generation technique is enjoyable}
+        \\resumeItem{Wrote an 8-page paper and gave multiple presentations on-campus}
+        \\resumeItem{Presented virtually to the World Conference on Computational Intelligence}
+      \\resumeItemListEnd
+
   \\resumeSubHeadingListEnd
-\\vspace{-16pt}
+
 
 %-----------PROJECTS-----------
 \\section{Projects}
-    \\vspace{-5pt}
     \\resumeSubHeadingListStart
       \\resumeProjectHeading
-          {\\textbf{Gym Reservation Bot} $|$ \\emph{Python, Selenium, Google Cloud Console}}{January 2021}
+          {\\textbf{Gitlytics} $|$ \\emph{Python, Flask, React, PostgreSQL, Docker}}{June 2020 -- Present}
           \\resumeItemListStart
-            \\resumeItem{Developed an automatic bot using Python and Google Cloud Console to register myself for a timeslot at my school gym.}
-            \\resumeItem{Implemented Selenium to create an instance of Chrome in order to interact with the correct elements of the web page.}
-            \\resumeItem{Created a Linux virtual machine to run on Google Cloud so that the program is able to run everyday from the cloud.}
-            \\resumeItem{Used Cron to schedule the program to execute automatically at 11 AM every morning so a reservation is made for me.}
+            \\resumeItem{Developed a full-stack web application using with Flask serving a REST API with React as the frontend}
+            \\resumeItem{Implemented GitHub OAuth to get data from user’s repositories}
+            \\resumeItem{Visualized GitHub data to show collaboration}
+            \\resumeItem{Used Celery and Redis for asynchronous tasks}
           \\resumeItemListEnd
-          \\vspace{-13pt}
       \\resumeProjectHeading
-          {\\textbf{Ticket Price Calculator App} $|$ \\emph{Java, Android Studio}}{November 2020}
+          {\\textbf{Simple Paintball} $|$ \\emph{Spigot API, Java, Maven, TravisCI, Git}}{May 2018 -- May 2020}
           \\resumeItemListStart
-            \\resumeItem{Created an Android application using Java and Android Studio to calculate ticket prices for trips to museums in NYC.}
-            \\resumeItem{Processed user inputted information in the back-end of the app to return a subtotal price based on the tickets selected.}
-            \\resumeItem{Utilized the layout editor to create a UI for the application in order to allow different scenes to interact with each other.}
-          \\resumeItemListEnd 
-          \\vspace{-13pt}
-          \\resumeProjectHeading
-          {\\textbf{Transaction Management GUI} $|$ \\emph{Java, Eclipse, JavaFX}}{October 2020}
-          \\resumeItemListStart
-            \\resumeItem{Designed a sample banking transaction system using Java to simulate the common functions of using a bank account.}
-            \\resumeItem{Used JavaFX to create a GUI that supports actions such as creating an account, deposit, withdraw, list all acounts, etc.}
-            \\resumeItem{Implemented object-oriented programming practices such as inheritance to create different account types and databases.}
-          \\resumeItemListEnd 
+            \\resumeItem{Developed a Minecraft server plugin to entertain kids during free time for a previous job}
+            \\resumeItem{Published plugin to websites gaining 2K+ downloads and an average 4.5/5-star review}
+            \\resumeItem{Implemented continuous delivery using TravisCI to build the plugin upon new a release}
+            \\resumeItem{Collaborated with Minecraft server administrators to suggest features and get feedback about the plugin}
+          \\resumeItemListEnd
     \\resumeSubHeadingListEnd
-\\vspace{-15pt}
 
 
+
+%
 %-----------PROGRAMMING SKILLS-----------
 \\section{Technical Skills}
  \\begin{itemize}[leftmargin=0.15in, label={}]
     \\small{\\item{
-     \\textbf{Languages}{: Python, Java, C, HTML/CSS, JavaScript, SQL} \\\\
-     \\textbf{Developer Tools}{: VS Code, Eclipse, Google Cloud Platform, Android Studio} \\\\
-     \\textbf{Technologies/Frameworks}{: Linux, Jenkins, GitHub, JUnit, WordPress} \\\\
+     \\textbf{Languages}{: Java, Python, C/C++, SQL (Postgres), JavaScript, HTML/CSS, R} \\\\
+     \\textbf{Frameworks}{: React, Node.js, Flask, JUnit, WordPress, Material-UI, FastAPI} \\\\
+     \\textbf{Developer Tools}{: Git, Docker, TravisCI, Google Cloud Platform, VS Code, Visual Studio, PyCharm, IntelliJ, Eclipse} \\\\
+     \\textbf{Libraries}{: pandas, NumPy, Matplotlib}
     }}
  \\end{itemize}
- \\vspace{-16pt}
 
 
-%-----------INVOLVEMENT---------------
-\\section{Leadership / Extracurricular}
-    \\resumeSubHeadingListStart
-        \\resumeSubheading{Fraternity}{Spring 2020 -- Present}{President}{University Name}
-            \\resumeItemListStart
-                \\resumeItem{Achieved a 4 star fraternity ranking by the Office of Fraternity and Sorority Affairs (highest possible ranking).}
-                \\resumeItem{Managed executive board of 5 members and ran weekly meetings to oversee progress in essential parts of the chapter.}
-                \\resumeItem{Led chapter of 30+ members to work towards goals that improve and promote community service, academics, and unity.}
-            \\resumeItemListEnd
-        
-    \\resumeSubHeadingListEnd
-
-
+%-------------------------------------------
 \\end{document}
 `;
 
@@ -772,11 +751,10 @@ function compileFullLatex(name: string, email: string, phone: string, linkedin: 
 
 %----------HEADING----------
 \\begin{center}
-    {\\Huge \\scshape ${name}} \\\\ \\vspace{1pt}
-    \\small \\raisebox{-0.1\\height}\\faPhone\\ ${phone} ~ \\href{mailto:${email}}{\\raisebox{-0.2\\height}\\faEnvelope\\  \\underline{${email}}} ~ 
-    \\href{https://${linkedin}}{\\raisebox{-0.2\\height}\\faLinkedin\\ \\underline{${linkedin}}}  ~
-    \\href{https://${github}}{\\raisebox{-0.2\\height}\\faGithub\\ \\underline{${github}}}
-    \\vspace{-8pt}
+    \\textbf{\\Huge \\scshape ${name}} \\\\ \\vspace{1pt}
+    \\small ${phone} $|$ \\href{mailto:${email}}{\\underline{${email}}} $|$ 
+    \\href{https://${linkedin}}{\\underline{${linkedin}}} $|$
+    \\href{https://${github}}{\\underline{${github}}}
 \\end{center}
 ${body}
 \\end{document}
@@ -785,8 +763,8 @@ ${body}
 
 function writeLatexSubheading(item: { title: string; date: string; sub1: string; sub2: string; bullets: string[] }): string {
   let out = `    \\resumeSubheading\n`;
-  out += `      {${item.title}}{${item.date}}\n`;
-  out += `      {${item.sub1}}{${item.sub2}}\n`;
+  out += `      {${item.title}}{${item.sub2}}\n`;
+  out += `      {${item.sub1}}{${item.date}}\n`;
   if (item.bullets.length > 0) {
     out += `      \\resumeItemListStart\n`;
     for (const bullet of item.bullets) {
@@ -1051,15 +1029,15 @@ function generateSimulatedAts(latex: string, jd: string): AtsFeedback {
 export async function analyzeResume(
   apiKey: string,
   model: string,
-  latexCode: string,
+  resumeText: string,
   jobDescription: string
 ): Promise<AtsFeedback> {
   if (apiKey.toLowerCase() === "demo") {
-    return generateSimulatedAts(latexCode, jobDescription);
+    return generateSimulatedAts(resumeText, jobDescription);
   }
 
   const systemPrompt = `You are an expert ATS (Applicant Tracking System) optimizer and career coach.
-Analyze the provided LaTeX resume code against the job description.
+Analyze the provided resume text against the job description.
 Provide feedback in strict JSON format. Respond ONLY with the JSON string, containing no introductory text, markdown tags, or explanations outside the JSON.
 
 Expected JSON output format:
@@ -1080,8 +1058,8 @@ Expected JSON output format:
 Job Description:
 ${jobDescription}
 
-LaTeX Resume:
-${latexCode}
+Resume Text:
+${resumeText}
 `;
 
   const messages: Message[] = [
@@ -1095,7 +1073,7 @@ ${latexCode}
     return JSON.parse(cleaned) as AtsFeedback;
   } catch (err: any) {
     console.warn("ATS analysis failed, returning simulated dashboard feedback:", err);
-    return generateSimulatedAts(latexCode, jobDescription);
+    return generateSimulatedAts(resumeText, jobDescription);
   }
 }
 
